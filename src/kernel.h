@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+extern uint8_t end[];
+
 void
 panic(const char* msg) __attribute__((noreturn));
 

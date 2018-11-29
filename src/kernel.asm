@@ -7,6 +7,8 @@ extern phys_next_free
 extern temp_map
 extern temp_unmap
 extern textend
+extern virt_alloc
+extern virt_free
 
 %define PAGESIZE 4096
 
@@ -115,67 +117,10 @@ kernel:
     call page_map
     add esp, 8
 
-    call allocvirt
+    call virt_alloc
 
     cli
     hlt
-
-;
-; virtual page allocation routines
-;
-
-; allocates a new virtual page in kernel space, returns in EAX
-allocvirt:
-    pushf
-    cli
-    ; read head of virtual free list
-    mov eax, [_virtfreelist]
-    test eax, eax
-    jz .alloc
-    ; if there is a page in the free list take it
-    push eax
-    mov eax, [eax]
-    mov [_virtfreelist], eax
-    pop eax
-    popf
-    ret
-.alloc:
-    push edx
-    mov edx, [_virtnext]
-    add dword [_virtnext], 0x1000
-    push edx
-    call phys_alloc
-    pop edx
-
-    ; save edx
-    push edx
-
-    push eax
-    push edx
-    call page_map
-    add esp, 8
-
-    pop edx
-
-    mov eax, edx
-    pop edx
-    popf
-    ret
-
-; frees kernel page in EAX
-freevirt:
-    pushf
-    cli
-    push edx
-    mov edx, [_virtfreelist]
-    mov [eax], edx
-    mov [_virtfreelist], eax
-    pop edx
-    popf
-    ret
-
-_virtfreelist   dd 0
-_virtnext       dd end
 
 global zero_page
 zero_page:

@@ -1,10 +1,6 @@
 #include "kernel.h"
 #include "types.h"
 
-phys_t
-phys_next_free,
-phys_free_list;
-
 static uint32_t* const
 PAGE_DIRECTORY = (uint32_t*)0xfffff000;
 
@@ -23,6 +19,14 @@ PAGE_TABLE = (uint32_t*)0xffc00000;
 
 extern uint8_t _temp_page[];
 
+phys_t
+phys_next_free,
+phys_free_list;
+
+uint32_t
+virt_next_free = (uint32_t)end,
+virt_free_list;
+
 void
 invlpg(void* virt)
 {
@@ -32,28 +36,24 @@ invlpg(void* virt)
 void*
 temp_map(phys_t phys)
 {
-    void* temp_page_addr = &_temp_page;
-
     if (!critical()) {
         panic("temp_map called while not in critical section");
     }
 
-    PAGE_TABLE[(uint32_t)temp_page_addr >> 12] = phys | PAGE_PRESENT | PAGE_RW;
-    invlpg(temp_page_addr);
-    return temp_page_addr;
+    PAGE_TABLE[PTE(_temp_page)] = phys | PAGE_PRESENT | PAGE_RW;
+    invlpg(_temp_page);
+    return (void*)_temp_page;
 }
 
 void
 temp_unmap()
 {
-    void* temp_page_addr = &_temp_page;
-
     if (!critical()) {
         panic("temp_unmap called while not in critical section");
     }
 
-    PAGE_TABLE[PTE(&_temp_page)] = 0;
-    invlpg(temp_page_addr);
+    PAGE_TABLE[PTE(_temp_page)] = 0;
+    invlpg(_temp_page);
 }
 
 phys_t
@@ -108,4 +108,32 @@ page_unmap(void* virt)
     phys_t phys = PAGE_TABLE[PTE(virt)] & ~PAGE_FLAGS;
     PAGE_TABLE[PTE(virt)] = 0;
     return phys;
+}
+
+void*
+virt_alloc()
+{
+    bool crit = critical_begin();
+
+    if (virt_free_list) {
+        uint32_t* page = (uint32_t*)virt_free_list;
+        virt_free_list = *page;
+        critical_end(crit);
+        return page;
+    }
+
+    void* page = (void*)virt_next_free;
+    virt_next_free += PAGE_SIZE;
+    critical_end(crit);
+    page_map(page, phys_alloc());
+    return page;
+}
+
+void
+virt_free(void* virt)
+{
+    bool crit = critical_begin();
+    *(uint32_t*)virt = virt_free_list;
+    virt_free_list = (uint32_t)virt;
+    critical_end(crit);
 }
