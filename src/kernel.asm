@@ -1,5 +1,7 @@
 use32
 global init
+global critical_begin
+global critical_end
 extern textend
 extern end
 
@@ -285,6 +287,23 @@ freevirt:
 
 _virtfreelist   dd 0
 _virtnext       dd end
+
+critical_begin:
+    pushf
+    pop eax
+    bt eax, 9 ; IF
+    salc ; set al if carry set
+    movzx eax, al ; extend al to entire eax register
+    cli ; clear interrupt
+    ret
+
+critical_end:
+    mov eax, [esp + 4]
+    test eax, eax
+    jz .return ; if IF was already 0, just return
+    sti
+.return:
+    ret
 
 ; end of text section:
 ; textend     equ (0xc0000000 + ($ - init) + PAGESIZE) & ~0xfff
