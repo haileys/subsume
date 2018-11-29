@@ -101,6 +101,11 @@ kernel:
     ; set up kernel stack
     mov esp, stackend
 
+    ; map vram to 0xb8000
+    mov edx, vram
+    mov eax, 0xb8000
+    call pagemap
+
     call allocphys
 
     cli
@@ -296,6 +301,30 @@ freevirt:
 _virtfreelist   dd 0
 _virtnext       dd end
 
+global panic
+panic:
+    mov edi, vram
+    mov ah, 0x4f
+    mov esi, .msg
+.prefix:
+    lodsb
+    test al, al
+    jz .prefix_done
+    stosw
+    jmp .prefix
+.prefix_done:
+    mov esi, [esp + 4]
+.copy:
+    lodsb
+    test al, al
+    jz .copy_done
+    stosw
+    jmp .copy
+.copy_done:
+    cli
+    hlt
+.msg db "PANIC: ", 0
+
 critical_begin:
     pushf
     pop eax
@@ -328,6 +357,7 @@ stackguard  resb 0x1000
 stack       resb 0x1000
 stackend    equ stack + 0x1000
 temppage    resb 0x1000
+vram        resb 0x1000
 
 ; start of uninitialised variable section:
 ; stackguard  equ textend + PAGESIZE * 0 ; 4 KIB
