@@ -1,7 +1,5 @@
 use32
 global init
-global critical_begin
-global critical_end
 extern textend
 extern end
 
@@ -325,15 +323,23 @@ panic:
     hlt
 .msg db "PANIC: ", 0
 
-critical_begin:
+global critical
+critical:
     pushf
     pop eax
     bt eax, 9 ; IF
     salc ; set al if carry set
-    movzx eax, al ; extend al to entire eax register
+    xor al, 1
+    movzx eax, al ; extend al to entire register
+    ret
+
+global critical_begin
+critical_begin:
+    call critical
     cli ; clear interrupt
     ret
 
+global critical_end
 critical_end:
     mov eax, [esp + 4]
     test eax, eax
