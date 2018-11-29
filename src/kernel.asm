@@ -85,6 +85,14 @@ kernel:
     ; edi contains next physical page available for use
     mov [_physnext], edi
 
+    ; zero out bss
+    mov edi, textend
+    mov ecx, end
+    sub ecx, edi
+    shr ecx, 2
+    xor eax, eax
+    rep stosw
+
     ; unmap stack guard page
     mov eax, stackguard
     shr eax, 12
