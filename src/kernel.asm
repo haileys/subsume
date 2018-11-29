@@ -1,7 +1,8 @@
 use32
-global init
-extern textend
 extern end
+extern temp_map
+extern temp_unmap
+extern textend
 
 %define PAGESIZE 4096
 
@@ -9,6 +10,7 @@ extern end
 ; we need to:
 ;   * map kernelbase at 0xc0000000
 ;   * identity map first 1 Mib + 64 KiB
+global init
 init:
     ; zero page directory
     mov edi, physpd
@@ -121,23 +123,26 @@ allocphys:
     mov eax, [_physfreelist]
     test eax, eax
     jz .alloc
+    ; save eax:
+    push eax
     ; if there is, map it at the temp address
     push eax
-    call tempmap
+    call temp_map
+    add esp, 4
     ; read pointer to next free phys page and store at free list head:
-    mov eax, [temppage]
+    mov eax, [_temp_page]
     mov [_physfreelist], eax
     ; zero phys page
     push edi
     push ecx
     mov ecx, 1024
-    mov edi, temppage
+    mov edi, _temp_page
     xor eax, eax
     rep stosd
     pop ecx
     pop edi
     ; remove temp mapping
-    call tempunmap
+    call temp_unmap
     ; pop phys addr and return
     pop eax
     popf
@@ -146,18 +151,21 @@ allocphys:
     ; no phys pages are in the freelist, need to allocate a new one
     mov eax, [_physnext]
     add dword [_physnext], 4096
+    ; save eax
+    push eax
     ; zero new phys page
     push eax
-    call tempmap
+    call temp_map
+    add esp, 4
     push edi
     push ecx
-    mov edi, temppage
+    mov edi, _temp_page
     mov ecx, 1024
     xor eax, eax
     rep stosd
     pop ecx
     pop edi
-    call tempunmap
+    call temp_unmap
     pop eax
     popf
     ret
@@ -166,14 +174,17 @@ allocphys:
 freephys:
     pushf
     cli
+    ; save eax
+    push eax
     ; temp map physical page
     push eax
-    call tempmap
+    call temp_map
+    add esp, 4
     ; write current free list head to first dword of page
     mov eax, [_physfreelist]
-    mov [temppage], eax
+    mov [_temp_page], eax
     ; unmap temp page
-    call tempunmap
+    call temp_unmap
     ; store just freed page at free list head
     pop eax
     mov [_physfreelist], eax
@@ -186,27 +197,6 @@ _physnext:       dd 0
 ;
 ; page mapping routines
 ;
-
-; map the temp page to a physical address given in EAX
-tempmap:
-    push edx
-    or eax, 0x03 ; present | rw
-    mov edx, temppage
-    shr edx, 12
-    mov [PT + edx * 4], eax
-    invlpg [temppage]
-    pop edx
-    ret
-
-; unmap the temp page
-tempunmap:
-    push edx
-    mov edx, temppage
-    shr edx, 12
-    mov dword [PT + edx * 4], 0
-    invlpg [temppage]
-    pop edx
-    ret
 
 ; map the virtual page given by EDX to the physical page given by EAX
 pagemap:
@@ -362,7 +352,8 @@ section .bss
 stackguard  resb 0x1000
 stack       resb 0x1000
 stackend    equ stack + 0x1000
-temppage    resb 0x1000
+global _temp_page
+_temp_page  resb 0x1000
 vram        resb 0x1000
 
 ; start of uninitialised variable section:
