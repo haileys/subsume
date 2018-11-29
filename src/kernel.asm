@@ -1,5 +1,6 @@
 use32
 extern end
+extern page_map
 extern phys_alloc
 extern phys_free_list
 extern phys_next_free
@@ -109,66 +110,15 @@ kernel:
     mov esp, stackend
 
     ; map vram to 0xb8000
-    mov edx, vram
-    mov eax, 0xb8000
-    call pagemap
+    push 0xb8000
+    push vram
+    call page_map
+    add esp, 8
 
     call allocvirt
 
     cli
     hlt
-
-;
-; page mapping routines
-;
-
-; map the virtual page given by EDX to the physical page given by EAX
-pagemap:
-    pushf
-    cli
-    ; first check if there is a page directory mapping existing for EDX
-    push edx
-    shr edx, 22
-    cmp dword [PD + edx * 4], 0
-    jne .ptexist
-    ; we need to allocate a page table and set the PDE
-    push eax
-    push edx
-    call phys_alloc
-    pop edx
-    or eax, 0x03 ; rw | present
-    mov [PD + edx], eax
-    pop eax
-    ; invalidate page table
-    mov edx, [esp] ; restore EDX without popping
-    shr edx, 12
-    invlpg [PT + edx * 4]
-    jmp .map
-.ptexist:
-    mov edx, [esp] ; restore EDX without popping
-    shr edx, 12
-.map:
-    or eax, 0x03 ; rw | present
-    mov [PT + edx * 4], eax
-    pop edx
-    invlpg [edx]
-    popf
-    ret
-
-; unmap the virtual page given by EAX
-; returns physical page in EAX for freeing
-pageunmap:
-    pushf
-    cli
-    push edx
-    xor edx, edx
-    shr eax, 12
-    xchg edx, [PT + eax * 4]
-    and edx, ~0xfff ; clear any flags
-    mov eax, edx
-    pop edx
-    popf
-    ret
 
 ;
 ; virtual page allocation routines
@@ -196,7 +146,17 @@ allocvirt:
     push edx
     call phys_alloc
     pop edx
-    call pagemap
+
+    ; save edx
+    push edx
+
+    push eax
+    push edx
+    call page_map
+    add esp, 8
+
+    pop edx
+
     mov eax, edx
     pop edx
     popf

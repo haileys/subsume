@@ -5,18 +5,21 @@ phys_t
 phys_next_free,
 phys_free_list;
 
-// static uint32_t* const
-// PAGE_DIRECTORY = (uint32_t*)0xfffff000;
+static uint32_t* const
+PAGE_DIRECTORY = (uint32_t*)0xfffff000;
+
+#define PDE(virt) ((uint32_t)(virt) >> 22)
 
 static uint32_t* const
-PAGE_TABLES = (uint32_t*)0xffc00000;
+PAGE_TABLE = (uint32_t*)0xffc00000;
 
 #define PTE(virt) ((uint32_t)(virt) >> 12)
 
 #define PAGE_SIZE       0x1000
 
-#define PAGE_PRESENT    0x01
-#define PAGE_RW         0x02
+#define PAGE_FLAGS      0xfff
+#define PAGE_PRESENT    0x001
+#define PAGE_RW         0x002
 
 extern uint8_t _temp_page[];
 
@@ -35,7 +38,7 @@ temp_map(phys_t phys)
         panic("temp_map called while not in critical section");
     }
 
-    PAGE_TABLES[(uint32_t)temp_page_addr >> 12] = phys | PAGE_PRESENT | PAGE_RW;
+    PAGE_TABLE[(uint32_t)temp_page_addr >> 12] = phys | PAGE_PRESENT | PAGE_RW;
     invlpg(temp_page_addr);
     return temp_page_addr;
 }
@@ -49,7 +52,7 @@ temp_unmap()
         panic("temp_unmap called while not in critical section");
     }
 
-    PAGE_TABLES[PTE(&_temp_page)] = 0;
+    PAGE_TABLE[PTE(&_temp_page)] = 0;
     invlpg(temp_page_addr);
 }
 
@@ -86,4 +89,23 @@ phys_free(phys_t phys)
     temp_unmap();
     phys_free_list = phys;
     critical_end(crit);
+}
+
+void
+page_map(void* virt, phys_t phys)
+{
+    if (!PAGE_DIRECTORY[PDE(virt)]) {
+        PAGE_DIRECTORY[PDE(virt)] = phys_alloc() | PAGE_PRESENT | PAGE_RW;
+        invlpg(&PAGE_TABLE[PTE(virt)]);
+    }
+    PAGE_TABLE[PTE(virt)] = phys | PAGE_PRESENT | PAGE_RW;
+    invlpg(virt);
+}
+
+phys_t
+page_unmap(void* virt)
+{
+    phys_t phys = PAGE_TABLE[PTE(virt)] & ~PAGE_FLAGS;
+    PAGE_TABLE[PTE(virt)] = 0;
+    return phys;
 }

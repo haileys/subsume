@@ -18,4 +18,10 @@ phys_alloc();
 void
 phys_free(phys_t phys);
 
+void
+page_map(void* virt, phys_t phys);
+
+void
+page_unmap(void* virt);
+
 #endif
