@@ -1,5 +1,8 @@
 use32
 extern end
+extern phys_alloc
+extern phys_free_list
+extern phys_next_free
 extern temp_map
 extern temp_unmap
 extern textend
@@ -83,7 +86,8 @@ kernel:
     mov dword [PTE(physbase)], 0
 
     ; edi contains next physical page available for use
-    mov [_physnext], edi
+    ; save it in ebx
+    mov ebx, edi
 
     ; zero out bss
     mov edi, textend
@@ -91,7 +95,10 @@ kernel:
     sub ecx, edi
     shr ecx, 2
     xor eax, eax
-    rep stosw
+    rep stosd
+
+    ; save next physical page in edi to phys_next_free now we've zeroed bss
+    mov [phys_next_free], ebx
 
     ; unmap stack guard page
     mov eax, stackguard
@@ -106,93 +113,10 @@ kernel:
     mov eax, 0xb8000
     call pagemap
 
-    call allocphys
+    call allocvirt
 
     cli
     hlt
-
-;
-; physical page allocation routines
-;
-
-; allocates physical page and returns physical address in EAX
-allocphys:
-    pushf
-    cli
-    ; see if there's a free physical page available in the free list:
-    mov eax, [_physfreelist]
-    test eax, eax
-    jz .alloc
-    ; save eax:
-    push eax
-    ; if there is, map it at the temp address
-    push eax
-    call temp_map
-    add esp, 4
-    ; read pointer to next free phys page and store at free list head:
-    mov eax, [_temp_page]
-    mov [_physfreelist], eax
-    ; zero phys page
-    push edi
-    push ecx
-    mov ecx, 1024
-    mov edi, _temp_page
-    xor eax, eax
-    rep stosd
-    pop ecx
-    pop edi
-    ; remove temp mapping
-    call temp_unmap
-    ; pop phys addr and return
-    pop eax
-    popf
-    ret
-.alloc:
-    ; no phys pages are in the freelist, need to allocate a new one
-    mov eax, [_physnext]
-    add dword [_physnext], 4096
-    ; save eax
-    push eax
-    ; zero new phys page
-    push eax
-    call temp_map
-    add esp, 4
-    push edi
-    push ecx
-    mov edi, _temp_page
-    mov ecx, 1024
-    xor eax, eax
-    rep stosd
-    pop ecx
-    pop edi
-    call temp_unmap
-    pop eax
-    popf
-    ret
-
-; frees physical page for address given in EAX
-freephys:
-    pushf
-    cli
-    ; save eax
-    push eax
-    ; temp map physical page
-    push eax
-    call temp_map
-    add esp, 4
-    ; write current free list head to first dword of page
-    mov eax, [_physfreelist]
-    mov [_temp_page], eax
-    ; unmap temp page
-    call temp_unmap
-    ; store just freed page at free list head
-    pop eax
-    mov [_physfreelist], eax
-    popf
-    ret
-
-_physfreelist:   dd 0
-_physnext:       dd 0
 
 ;
 ; page mapping routines
@@ -209,7 +133,9 @@ pagemap:
     jne .ptexist
     ; we need to allocate a page table and set the PDE
     push eax
-    call allocphys
+    push edx
+    call phys_alloc
+    pop edx
     or eax, 0x03 ; rw | present
     mov [PD + edx], eax
     pop eax
@@ -267,7 +193,9 @@ allocvirt:
     push edx
     mov edx, [_virtnext]
     add dword [_virtnext], 0x1000
-    call allocphys
+    push edx
+    call phys_alloc
+    pop edx
     call pagemap
     mov eax, edx
     pop edx
@@ -288,6 +216,16 @@ freevirt:
 
 _virtfreelist   dd 0
 _virtnext       dd end
+
+global zero_page
+zero_page:
+    push edi
+    mov edi, [esp + 8]
+    mov ecx, 1024
+    xor eax, eax
+    rep stosd
+    pop edi
+    ret
 
 global panic
 panic:

@@ -12,4 +12,10 @@ temp_map(phys_t phys);
 void
 temp_unmap();
 
+phys_t
+phys_alloc();
+
+void
+phys_free(phys_t phys);
+
 #endif

@@ -6,6 +6,9 @@
 void
 panic(const char* msg) __attribute__((noreturn));
 
+void
+zero_page(void*);
+
 bool
 critical_begin();
 
