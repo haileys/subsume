@@ -1,5 +1,7 @@
 use32
-org 0xc0000000
+global init
+extern textend
+extern end
 
 %define PAGESIZE 4096
 
@@ -16,14 +18,14 @@ init:
     ; edi is now physpd + PAGESIZE
 
     ; identity map current page of init
-    mov dword [initpdent], (physpd + PAGESIZE) | 0x03 ; present | rw
+    mov dword [initpdent], (physpd + PAGESIZE) + 0x03 ; present | rw
     mov ecx, 1024
     xor eax, eax
     rep stosd ; clear PT
-    mov dword [initptent], physbase | 0x03 ; present | rw
+    mov dword [initptent], physbase + 0x03 ; present | rw
 
     ; recursively map page directory
-    mov dword [physpd + 1023 * 4], physpd | 0x03
+    mov dword [physpd + 1023 * 4], physpd + 0x03
 
     ; load esi with higher kernel base
     mov esi, 0xc0000000
@@ -82,12 +84,14 @@ kernel:
     mov [_physnext], edi
 
     ; unmap stack guard page
-    mov edx, stackguard
-    mov eax, stackend
-    mov dword [PTE(stackguard)], 0
+    mov eax, stackguard
+    shr eax, 12
+    mov dword [PT + eax * 4], 0
 
     ; set up kernel stack
     mov esp, stackend
+
+    call allocphys
 
     cli
     hlt
@@ -172,15 +176,23 @@ _physnext:       dd 0
 
 ; map the temp page to a physical address given in EAX
 tempmap:
+    push edx
     or eax, 0x03 ; present | rw
-    mov [PTE(temppage)], eax
+    mov edx, temppage
+    shr edx, 12
+    mov [PT + edx * 4], eax
     invlpg [temppage]
+    pop edx
     ret
 
 ; unmap the temp page
 tempunmap:
-    mov dword [PTE(temppage)], 0
+    push edx
+    mov edx, temppage
+    shr edx, 12
+    mov dword [PT + edx * 4], 0
     invlpg [temppage]
+    pop edx
     ret
 
 ; map the virtual page given by EDX to the physical page given by EAX
@@ -275,14 +287,7 @@ _virtfreelist   dd 0
 _virtnext       dd end
 
 ; end of text section:
-textend     equ (0xc0000000 + ($ - init) + PAGESIZE) & ~0xfff
-
-; start of uninitialised variable section:
-stackguard  equ textend + PAGESIZE * 0 ; 4 KIB
-stack       equ textend + PAGESIZE * 1 ; 4 KiB
-stackend    equ textend + PAGESIZE * 2
-temppage    equ textend + PAGESIZE * 2 ; 4 KiB
-end         equ textend + PAGESIZE * 3
+; textend     equ (0xc0000000 + ($ - init) + PAGESIZE) & ~0xfff
 
 physbase    equ 0x00110000
 initpdent   equ physpd + (physbase >> 22) * 4
@@ -290,3 +295,16 @@ initptent   equ physpd + PAGESIZE + (physbase >> 12) * 4
 initlen     equ kernel - init
 physpd      equ end - 0xc0000000 + physbase
 
+section .bss
+
+stackguard  resb 0x1000
+stack       resb 0x1000
+stackend    equ stack + 0x1000
+temppage    resb 0x1000
+
+; start of uninitialised variable section:
+; stackguard  equ textend + PAGESIZE * 0 ; 4 KIB
+; stack       equ textend + PAGESIZE * 1 ; 4 KiB
+; stackend    equ textend + PAGESIZE * 2
+; temppage    equ textend + PAGESIZE * 2 ; 4 KiB
+; end         equ textend + PAGESIZE * 3
