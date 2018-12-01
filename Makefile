@@ -17,7 +17,7 @@ src/%.o: src/%.c src/*.h
 	$(CC) -o $@ -Os -Wall -Werror -ffreestanding -nostdinc -nostdlib -c $<
 
 src/%.o: src/%.asm
-	$(NASM) -f elf32 -o $@ $<
+	$(NASM) -I src -f elf32 -o $@ $<
 
 .PHONY: clean
 clean:

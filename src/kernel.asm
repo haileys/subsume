@@ -10,7 +10,7 @@ extern textend
 extern virt_alloc
 extern virt_free
 
-%define PAGESIZE 4096
+%include "consts.asm"
 
 ; kernel is loaded at kernelbase = phys 0x00110000
 ; we need to:
@@ -26,7 +26,7 @@ init:
     ; edi is now physpd + PAGESIZE
 
     ; identity map current page of init
-    mov dword [initpdent], (physpd + PAGESIZE) + 0x03 ; present | rw
+    mov dword [initpdent], (physpd + PAGE_SIZE) + 0x03 ; present | rw
     mov ecx, 1024
     xor eax, eax
     rep stosd ; clear PT
@@ -63,7 +63,7 @@ init:
     or eax, 0x03 ; present | rw
     mov [ebx], eax ; set PT entry
     ; advance esi (virt addr) to next page
-    add esi, PAGESIZE
+    add esi, PAGE_SIZE
     ; loop around if there are more pages to be mapped (esi < end)
     cmp esi, end
     jb .mapkernel
@@ -181,12 +181,9 @@ critical_end:
 .return:
     ret
 
-; end of text section:
-; textend     equ (0xc0000000 + ($ - init) + PAGESIZE) & ~0xfff
-
 physbase    equ 0x00110000
 initpdent   equ physpd + (physbase >> 22) * 4
-initptent   equ physpd + PAGESIZE + (physbase >> 12) * 4
+initptent   equ physpd + PAGE_SIZE + (physbase >> 12) * 4
 initlen     equ kernel - init
 physpd      equ end - 0xc0000000 + physbase
 
@@ -198,10 +195,3 @@ stackend    equ stack + 0x1000
 global _temp_page
 _temp_page  resb 0x1000
 vram        resb 0x1000
-
-; start of uninitialised variable section:
-; stackguard  equ textend + PAGESIZE * 0 ; 4 KIB
-; stack       equ textend + PAGESIZE * 1 ; 4 KiB
-; stackend    equ textend + PAGESIZE * 2
-; temppage    equ textend + PAGESIZE * 2 ; 4 KiB
-; end         equ textend + PAGESIZE * 3
