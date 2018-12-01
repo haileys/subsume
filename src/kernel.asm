@@ -264,5 +264,6 @@ stack       resb 0x1000
 stackend    equ stack + 0x1000
 global _temp_page
 _temp_page  resb 0x1000
+global vram
 vram        resb 0x1000
 tss         resb TSS_SIZE

@@ -1,9 +1,15 @@
 use32
 global interrupt_init
+extern vram
 
 %include "consts.asm"
 
 %define IDT_SIZE 0x1000
+
+%define PIC1 0x20
+%define PIC2 0xa0
+%define COMMAND 0
+%define DATA    1
 
 interrupt_init:
     ; init PIC
@@ -22,40 +28,46 @@ interrupt_init:
         mov [idt + ((%1) * 8) + 6], ax
     %endmacro
 
-    ENTRY 0x00, divide_by_zero,           SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x01, debug,                    SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x02, nmi,                      SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x03, breakpoint,               SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x04, overflow,                 SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x05, bound_range_exceeded,     SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x06, invalid_opcode,           SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x07, device_not_available,     SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x08, double_fault,             SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x0a, invalid_tss,              SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x0b, segment_not_present,      SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x0c, stack_segment_fault,      SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x0d, general_protection_fault, SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x0e, page_fault,               SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x10, x87_exception,            SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x11, alignment_check,          SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x12, machine_check,            SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x13, simd_exception,           SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x14, virtualization_exception, SEG_KCODE, IDT_PRESENT | IDT_INT32
-    ENTRY 0x1e, security_exception,       SEG_KCODE, IDT_PRESENT | IDT_INT32
-    %assign irq_num 0
-    %rep 16
-        ENTRY 0x20 + irq_num, irq%[irq_num], SEG_KCODE, IDT_PRESENT | IDT_INT32
-        %assign irq_num irq_num + 1
-    %endrep
+    ENTRY 0x00, divide_by_zero,             SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x01, debug,                      SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x02, nmi,                        SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x03, breakpoint,                 SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x04, overflow,                   SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x05, bound_range_exceeded,       SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x06, invalid_opcode,             SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x07, device_not_available,       SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x08, double_fault,               SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x0a, invalid_tss,                SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x0b, segment_not_present,        SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x0c, stack_segment_fault,        SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x0d, general_protection_fault,   SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x0e, page_fault,                 SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x10, x87_exception,              SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x11, alignment_check,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x12, machine_check,              SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x13, simd_exception,             SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x14, virtualization_exception,   SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x1e, security_exception,         SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x20, irq0,                       SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x21, irq_pic1_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x22, irq_pic1_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x23, irq_pic1_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x24, irq_pic1_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x25, irq_pic1_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x26, irq_pic1_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x27, irq7,                       SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x28, irq_pic2_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x29, irq_pic2_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x2a, irq_pic2_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x2b, irq_pic2_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x2c, irq_pic2_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x2d, irq_pic2_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x2e, irq_pic2_ignore,            SEG_KCODE, IDT_PRESENT | IDT_INT32
+    ENTRY 0x2f, irq15,                      SEG_KCODE, IDT_PRESENT | IDT_INT32
 
     ; load IDT
     lidt [idtr]
     ret
-
-%define PIC1 0x20
-%define PIC2 0xa0
-%define COMMAND 0
-%define DATA    1
 
 pic_init:
     ; save pic masks, PIC1 in BL and PIC2 in BH
@@ -174,20 +186,74 @@ security_exception:
     add esp, 4 ; pop error code from stack
     iret
 
-; receives IRQ number on stack
-irq:
-    xchg bx, bx
-    add esp, 4
+; PIT
+irq0:
+    push ax
+    mov al, 0x20
+    out PIC1 + COMMAND, al
+    pop ax
+    inc byte [vram]
     iret
 
-; generate IRQ handlers
-%assign irq_num 0
-%rep 16
-    irq%[irq_num]:
-        push irq_num
-        jmp irq
-    %assign irq_num irq_num + 1
-%endrep
+; keyboard
+irq1:
+    push ax
+    mov al, 0x20
+    out PIC1 + COMMAND, al
+    pop ax
+    iret
+
+; IRQ 2 is missing - it never happens in practise
+
+; LPT1/spurious
+irq7:
+    ; we need to test whether this was a genuine IRQ or spurious
+    push ax
+    mov al, 0x0b ; read in-service register from PIC1
+    out PIC1 + COMMAND, al
+    in al, PIC1 + COMMAND
+    bt ax, 7
+    ; if bit 7 is not set on PIC1, this was a spurious IRQ
+    jnc .spurious
+    ; acknowledge IRQ if legit
+    mov al, 0x20
+    out PIC1 + COMMAND, al
+.spurious:
+    pop ax
+    iret
+
+; ATA2/spurious
+irq15:
+    ; we need to test whether this was a genuine IRQ or spurious
+    push ax
+    mov al, 0x0b ; read in-service register from PIC2
+    out PIC2 + COMMAND, al
+    in al, PIC2 + COMMAND
+    bt ax, 7
+    ; if bit 7 is not set on PIC2, this was a spurious IRQ
+    jnc .spurious
+    ; acknowledge IRQ if legit
+    mov al, 0x20
+    out PIC1 + COMMAND, al
+    out PIC2 + COMMAND, al
+.spurious:
+    pop ax
+    iret
+
+irq_pic1_ignore:
+    push ax
+    mov al, 0x20
+    out PIC1 + COMMAND, al
+    pop ax
+    iret
+
+irq_pic2_ignore:
+    push ax
+    mov al, 0x20
+    out PIC1 + COMMAND, al
+    out PIC2 + COMMAND, al
+    pop ax
+    iret
 
 align 4
 idtr:
