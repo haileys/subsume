@@ -1,1 +1,2 @@
+%define KERNEL_BASE 0xc0000000
 %define PAGE_SIZE 4096

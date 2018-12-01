@@ -14,7 +14,7 @@ extern virt_free
 
 ; kernel is loaded at kernelbase = phys 0x00110000
 ; we need to:
-;   * map kernelbase at 0xc0000000
+;   * map kernelbase at KERNEL_BASE
 ;   * identity map first 1 Mib + 64 KiB
 global init
 init:
@@ -36,7 +36,7 @@ init:
     mov dword [physpd + 1023 * 4], physpd + 0x03
 
     ; load esi with higher kernel base
-    mov esi, 0xc0000000
+    mov esi, KERNEL_BASE
 .mapkernel:
     mov edx, esi ; esi contains virt page to be mapped
     shr edx, 22 ; find PD index
@@ -59,7 +59,7 @@ init:
     and eax, 0x3ff
     lea ebx, [edx + eax * 4] ; find PT entry address
     ; build PT entry
-    lea eax, [esi + physbase - 0xc0000000] ; convert virt to phys for kernel map
+    lea eax, [esi + physbase - KERNEL_BASE] ; convert virt to phys for kernel map
     or eax, 0x03 ; present | rw
     mov [ebx], eax ; set PT entry
     ; advance esi (virt addr) to next page
@@ -185,7 +185,7 @@ physbase    equ 0x00110000
 initpdent   equ physpd + (physbase >> 22) * 4
 initptent   equ physpd + PAGE_SIZE + (physbase >> 12) * 4
 initlen     equ kernel - init
-physpd      equ end - 0xc0000000 + physbase
+physpd      equ end - KERNEL_BASE + physbase
 
 section .bss
 
