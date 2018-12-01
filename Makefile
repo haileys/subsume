@@ -1,7 +1,7 @@
 CC=i386-elf-gcc
 LD=i386-elf-ld
 NASM=nasm
-KOBJS=src/kernel.o src/mm.o
+KOBJS=src/kernel.o src/mm.o src/interrupt.o
 
 msdos.img: msdos-base.img subsume.com
 	cp msdos-base.img msdos.img
@@ -16,7 +16,7 @@ subsumek.bin: linker.ld $(KOBJS)
 src/%.o: src/%.c src/*.h
 	$(CC) -o $@ -Os -Wall -Werror -ffreestanding -nostdinc -nostdlib -c $<
 
-src/%.o: src/%.asm
+src/%.o: src/%.asm src/consts.asm
 	$(NASM) -I src -f elf32 -o $@ $<
 
 .PHONY: clean

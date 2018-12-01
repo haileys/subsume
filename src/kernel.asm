@@ -1,5 +1,6 @@
 use32
 extern end
+extern interrupt_init
 extern page_map
 extern phys_alloc
 extern phys_free_list
@@ -120,10 +121,30 @@ kernel:
     call page_map
     add esp, 8
 
-    call virt_alloc
+    ; initialize interrupts
+    call interrupt_init
 
-    cli
+    ; initialize TSS
+    mov [tss + TSS_ESP0], esp
+    mov ax, ss
+    mov [tss + TSS_SS0], ax
+    mov word [tss + TSS_IOPB], TSS_SIZE
+    mov ax, SEG_TSS
+    mov edx, tss
+    ltr ax
+
+    ; enable interrupts
+    sti
+
+L:
     hlt
+    jmp L
+
+    ; call virt_alloc
+
+mainloop:
+    hlt
+    jmp mainloop
 
 global zero_page
 zero_page:
@@ -193,7 +214,7 @@ physpd      equ end - KERNEL_BASE + physbase
 gdtr:
     dw gdt.end - gdt - 1
 .offset:
-    dd 0
+    dd gdt
 
 gdt:
     ; entry 0x00 : null
@@ -226,13 +247,22 @@ gdt:
     db GDT_PRESENT | GDT_DATA | GDT_WX | GDT_USER
     db 0xcf   ; 32 bit, 4 KiB granularity, limit 0xfffff 16:19
     db 0x00   ; base 0, 24:31
+    ; entry 0x28 ; tss
+    dw TSS_SIZE & 0xffff ; limit 0:15
+    dw (KERNEL_BASE + tss - bssbegin) & 0xffff ; base 0:15
+    db (KERNEL_BASE + tss - bssbegin) >> 16 & 0xff ; base 16:23
+    db 0x89 ; flags
+    db 0x40 | ((TSS_SIZE >> 16) & 0x0f) ; 32 bit, 1 byte granularity, limit 16:19
+    db (KERNEL_BASE + tss - bssbegin) >> 24 & 0xff ; base 24:31
 .end:
 
-section .bss
 
+section .bss
+bssbegin equ $$
 stackguard  resb 0x1000
 stack       resb 0x1000
 stackend    equ stack + 0x1000
 global _temp_page
 _temp_page  resb 0x1000
 vram        resb 0x1000
+tss         resb TSS_SIZE
