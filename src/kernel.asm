@@ -92,6 +92,9 @@ kernel:
     ; save it in ebx
     mov ebx, edi
 
+    ; move GDT to higher half
+    lgdt [gdtr]
+
     ; zero out bss
     mov edi, textend
     mov ecx, end
@@ -186,6 +189,44 @@ initpdent   equ physpd + (physbase >> 22) * 4
 initptent   equ physpd + PAGE_SIZE + (physbase >> 12) * 4
 initlen     equ kernel - init
 physpd      equ end - KERNEL_BASE + physbase
+
+gdtr:
+    dw gdt.end - gdt - 1
+.offset:
+    dd 0
+
+gdt:
+    ; entry 0x00 : null
+    dq 0
+    ; entry 0x08 : code
+    dw 0xffff ; limit 0xfffff, 0:15
+    dw 0x0000 ; base 0, 0:15
+    db 0x00   ; base 0, 16:23
+    db GDT_PRESENT | GDT_CODE | GDT_WX
+    db 0xcf   ; 32 bit, 4 KiB granularity, limit 0xfffff 16:19
+    db 0x00   ; base 0, 24:31
+    ; entry 0x10 : data
+    dw 0xffff ; limit 0xfffff, 0:15
+    dw 0x0000 ; base 0, 0:15
+    db 0x00   ; base 0, 16:23
+    db GDT_PRESENT | GDT_DATA | GDT_WX
+    db 0xcf   ; 32 bit, 4 KiB granularity, limit 0xfffff 16:19
+    db 0x00   ; base 0, 24:31
+    ; entry 0x18 : code
+    dw 0xffff ; limit 0xfffff, 0:15
+    dw 0x0000 ; base 0, 0:15
+    db 0x00   ; base 0, 16:23
+    db GDT_PRESENT | GDT_CODE | GDT_WX | GDT_USER
+    db 0xcf   ; 32 bit, 4 KiB granularity, limit 0xfffff 16:19
+    db 0x00   ; base 0, 24:31
+    ; entry 0x20 : data
+    dw 0xffff ; limit 0xfffff, 0:15
+    dw 0x0000 ; base 0, 0:15
+    db 0x00   ; base 0, 16:23
+    db GDT_PRESENT | GDT_DATA | GDT_WX | GDT_USER
+    db 0xcf   ; 32 bit, 4 KiB granularity, limit 0xfffff 16:19
+    db 0x00   ; base 0, 24:31
+.end:
 
 section .bss
 
