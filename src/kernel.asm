@@ -170,14 +170,6 @@ kernel:
     mov ax, SEG_TSS
     ltr ax
 
-    ; map ring 3 page
-    call phys_alloc
-    push PAGE_RW | PAGE_USER
-    push eax
-    push 0x1000
-    call page_map
-    add esp, 12
-
     ; set up 1 MiB of memory for VM86 task
     xor edi, edi
 .vm86_alloc_loop:
@@ -201,26 +193,32 @@ kernel:
     call page_map
     add esp, 12
 
-    ; set up ring 3 task code
-    mov esi, ring3task
-    mov edi, 0x1000
-    mov ecx, ring3task.end - ring3task
-    rep movsb
+    ; copy phys low memory to new allocation
+    xor edi, edi
+    mov esi, lowmem
+    mov ecx, LOWMEM_SIZE / 4
+    rep movsd
 
-    ; switch to vm8086
-    push 0          ; GS
-    push 0          ; FS
-    push 0          ; DS
-    push 0          ; ES
-    push 0          ; SS
-    push 0x2000     ; ESP
+    ; set up iret stack in preparation for VM8086 switch
+    movzx eax, word [task + TASK_DS]
+    push eax        ; GS
+    push eax        ; FS
+    push eax        ; DS
+    push eax        ; ES
+    movzx eax, word [task + TASK_SS]
+    push eax        ; SS
+    movzx eax, word [task + TASK_SP]
+    push eax        ; ESP
     pushf
     pop eax
     or eax, FLAG_INTERRUPT | FLAG_VM8086
     push eax        ; EFLAGS
-    push 0          ; CS
-    push 0x1000     ; EIP
+    movzx eax, word [task + TASK_CS]
+    push eax        ; CS
+    movzx eax, word [task + TASK_IP]
+    push eax        ; EIP
 
+    ; clear general registers
     xor eax, eax
     xor ebx, ebx
     xor ecx, ecx
@@ -229,18 +227,8 @@ kernel:
     xor esi, esi
     xor edi, edi
 
+    ; switch to VM8086
     iret
-
-
-L:
-    hlt
-    jmp L
-
-    ; call virt_alloc
-
-mainloop:
-    hlt
-    jmp mainloop
 
 global zero_page
 zero_page:
