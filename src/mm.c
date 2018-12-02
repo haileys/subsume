@@ -16,6 +16,7 @@ PAGE_TABLE = (uint32_t*)0xffc00000;
 #define PAGE_FLAGS      0xfff
 #define PAGE_PRESENT    0x001
 #define PAGE_RW         0x002
+#define PAGE_USER       0x004
 
 extern uint8_t _temp_page[];
 
@@ -92,13 +93,13 @@ phys_free(phys_t phys)
 }
 
 void
-page_map(void* virt, phys_t phys)
+page_map(void* virt, phys_t phys, uint16_t flags)
 {
     if (!PAGE_DIRECTORY[PDE(virt)]) {
-        PAGE_DIRECTORY[PDE(virt)] = phys_alloc() | PAGE_PRESENT | PAGE_RW;
+        PAGE_DIRECTORY[PDE(virt)] = phys_alloc() | PAGE_PRESENT | PAGE_RW | PAGE_USER;
         invlpg(&PAGE_TABLE[PTE(virt)]);
     }
-    PAGE_TABLE[PTE(virt)] = phys | PAGE_PRESENT | PAGE_RW;
+    PAGE_TABLE[PTE(virt)] = phys | PAGE_PRESENT | (flags & PAGE_FLAGS);
     invlpg(virt);
 }
 
@@ -125,7 +126,7 @@ virt_alloc()
     void* page = (void*)virt_next_free;
     virt_next_free += PAGE_SIZE;
     critical_end(crit);
-    page_map(page, phys_alloc());
+    page_map(page, phys_alloc(), PAGE_RW);
     return page;
 }
 

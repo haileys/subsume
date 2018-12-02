@@ -19,7 +19,7 @@ void
 phys_free(phys_t phys);
 
 void
-page_map(void* virt, phys_t phys);
+page_map(void* virt, phys_t phys, uint16_t flags);
 
 void
 page_unmap(void* virt);

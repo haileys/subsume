@@ -117,6 +117,7 @@ kernel:
     mov esp, stackend
 
     ; map vram to 0xb8000
+    push PAGE_RW
     push 0xb8000
     push vram
     call page_map

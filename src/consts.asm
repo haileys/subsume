@@ -18,3 +18,8 @@
 %define TSS_SS0     0x08
 %define TSS_IOPB    0x66
 %define TSS_SIZE    104
+
+%define PAGE_PRESENT    0x001
+%define PAGE_RW         0x002
+%define PAGE_USER       0x004
+%define PAGE_FLAGS      0xfff
