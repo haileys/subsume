@@ -27,14 +27,15 @@ init:
     ; edi is now physpd + PAGESIZE
 
     ; identity map current page of init
-    mov dword [initpdent], (physpd + PAGE_SIZE) + 0x03 ; present | rw
+    ; page directory entry needs to be user accessible for later
+    mov dword [initpdent], (physpd + PAGE_SIZE) + (PAGE_PRESENT | PAGE_RW | PAGE_USER)
     mov ecx, 1024
     xor eax, eax
     rep stosd ; clear PT
-    mov dword [initptent], physbase + 0x03 ; present | rw
+    mov dword [initptent], physbase + (PAGE_PRESENT | PAGE_RW)
 
     ; recursively map page directory
-    mov dword [physpd + 1023 * 4], physpd + 0x03
+    mov dword [physpd + 1023 * 4], physpd + (PAGE_PRESENT | PAGE_RW)
 
     ; load esi with higher kernel base
     mov esi, KERNEL_BASE
