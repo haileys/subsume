@@ -1,5 +1,6 @@
 use32
 global interrupt_init
+extern panic
 extern vram
 
 %include "consts.asm"
@@ -131,9 +132,9 @@ device_not_available:
     iret
 
 double_fault:
-    xchg bx, bx
-    add esp, 4 ; pop error code from stack
-    iret
+    push .msg
+    call panic
+    .msg db "double fault"
 
 invalid_tss:
     xchg bx, bx
