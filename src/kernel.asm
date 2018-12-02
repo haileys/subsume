@@ -117,6 +117,20 @@ kernel:
     ; set up kernel stack
     mov esp, stackend
 
+
+    ; map low memory into kernel space
+    mov esi, lowmem
+    xor edi, edi
+    mov ecx, LOWMEM_SIZE / PAGE_SIZE
+.lowmem_map:
+    push PAGE_RW
+    push edi
+    push esi
+    call page_map
+    add esp, 12
+    add esi, PAGE_SIZE
+    add edi, PAGE_SIZE
+    loop .lowmem_map
     ; map vram to 0xb8000
     push PAGE_RW
     push 0xb8000
@@ -347,4 +361,6 @@ global _temp_page
 _temp_page  resb 0x1000
 global vram
 vram        resb 0x1000
+global lowmem
+lowmem      resb LOWMEM_SIZE
 tss         resb TSS_SIZE
