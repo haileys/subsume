@@ -1,7 +1,7 @@
 use32
 global interrupt_init
 extern panic
-extern vram
+extern lowmem
 
 %include "consts.asm"
 
@@ -228,7 +228,7 @@ irq0:
     mov ds, ax
     mov al, 0x20
     out PIC1 + COMMAND, al
-    inc byte [vram]
+    inc byte [lowmem + 0xb8000]
     pop ds
     pop ax
     iret

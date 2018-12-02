@@ -145,13 +145,6 @@ kernel:
     rep movsb
     mov eax, task
 
-    ; map vram to 0xb8000
-    push PAGE_RW
-    push 0xb8000
-    push vram
-    call page_map
-    add esp, 12
-
     ; initialize interrupts
     call interrupt_init
 
@@ -242,7 +235,7 @@ zero_page:
 
 global panic
 panic:
-    mov edi, vram
+    lea edi, [lowmem + 0xb8000]
     mov ah, 0x4f
     mov esi, .msg
 .prefix:
@@ -360,8 +353,6 @@ stack       resb 0x1000
 stackend    equ stack + 0x1000
 global _temp_page
 _temp_page  resb 0x1000
-global vram
-vram        resb 0x1000
 global lowmem
 lowmem      resb LOWMEM_SIZE
 align 4
