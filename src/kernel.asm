@@ -117,6 +117,9 @@ kernel:
     ; set up kernel stack
     mov esp, stackend
 
+    ; ebp still contains phys pointer to data set up for us by early loader
+    ; push it before we map low memory into kernel space
+    push ebp
 
     ; map low memory into kernel space
     mov esi, lowmem
@@ -131,6 +134,17 @@ kernel:
     add esi, PAGE_SIZE
     add edi, PAGE_SIZE
     loop .lowmem_map
+
+    ; pop saved phys task pointer from before into esi
+    pop esi
+    ; offset esi by lowmem to access virt mapped task data
+    add esi, lowmem
+    mov edi, task
+    mov ecx, TASK_SIZE
+    ; copy task data into kernel-owned memory
+    rep movsb
+    mov eax, task
+
     ; map vram to 0xb8000
     push PAGE_RW
     push 0xb8000
@@ -362,4 +376,7 @@ global vram
 vram        resb 0x1000
 global lowmem
 lowmem      resb LOWMEM_SIZE
+align 4
 tss         resb TSS_SIZE
+align 4
+task        resb TASK_SIZE

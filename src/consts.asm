@@ -28,3 +28,10 @@
 
 %define FLAG_INTERRUPT  (1 << 9)
 %define FLAG_VM8086     (1 << 17)
+
+%define TASK_SIZE       (4 * 20)
+%define TASK_CS         0
+%define TASK_IP         2
+%define TASK_DS         4
+%define TASK_SS         6
+%define TASK_SP         8

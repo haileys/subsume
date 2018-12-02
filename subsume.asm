@@ -3,6 +3,18 @@ org 0x100
 
 %include "consts.asm"
 
+    ; save necessary registers
+    mov ax, cs
+    mov [task + TASK_CS], ax
+    mov ax, retn
+    mov [task + TASK_IP], ax
+    mov ax, ds
+    mov [task + TASK_DS], ax
+    mov ax, ss
+    mov [task + TASK_SS], ax
+    mov [task + TASK_SP], sp
+
+    ; fetch memory map from BIOS
     mov di, memmap
     xor ebx, ebx
     mov edx, 0x534d4150
@@ -53,6 +65,11 @@ memloop:
 
     ; jump to trampoline which will near jump to ebp
     jmp SEG_KCODE:0
+
+; here is where the protected mode kernel will return back to when we're in
+; VM8086 mode
+retn:
+    jmp $
 
 gdtr:
     dw gdt.end - gdt - 1
@@ -105,6 +122,10 @@ pmode:
     mov ecx, kernelcode.end - kernelcode
     rep movsb
 
+    ; ebp still contains address of pmode
+    ; add task offset to it so that kernel receives task data pointer in ebp
+    add ebp, task - pmode
+
     mov eax, KERNEL_PHYS_BASE
     jmp eax
 
@@ -112,5 +133,7 @@ kernelcode:
     incbin "subsumek.bin"
 .end:
 
+align 4
+task: times TASK_SIZE db 0
 align 4
 memmap:
