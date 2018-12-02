@@ -1,6 +1,8 @@
 use16
 org 0x100
 
+%include "consts.asm"
+
     mov di, memmap
     xor ebx, ebx
     mov edx, 0x534d4150
@@ -34,7 +36,7 @@ memloop:
     ; protected mode code.
 
     ; load gs first so we can reference phys 0x0
-    mov ax, 0x10
+    mov ax, SEG_KDATA
     mov gs, ax
 
     ; save value of 0x0 in eax
@@ -50,7 +52,7 @@ memloop:
     add ebp, pmode
 
     ; jump to trampoline which will near jump to ebp
-    jmp 0x08:0
+    jmp SEG_KCODE:0
 
 gdtr:
     dw gdt.end - gdt - 1
@@ -87,7 +89,7 @@ trampoline:
 
 pmode:
     ; reload segment selectors
-    mov bx, 0x10
+    mov bx, SEG_KDATA
     mov ds, bx
     mov es, bx
     mov fs, bx
@@ -99,23 +101,16 @@ pmode:
 
     ; find start of high
     lea esi, [ADDR(kernelcode)]
-    mov edi, 0x00110000
+    mov edi, KERNEL_PHYS_BASE
     mov ecx, kernelcode.end - kernelcode
     rep movsb
 
-    mov eax, 0x00110000
+    mov eax, KERNEL_PHYS_BASE
     jmp eax
 
 kernelcode:
     incbin "subsumek.bin"
 .end:
 
-times 8-(($-$$) % 8) db 0
-
-brk:
-
-stack       equ brk + 0
-stackend    equ brk + 4096
-memmap      equ brk + 4096
-
-kernelbase  equ 0x00110000
+align 4
+memmap:

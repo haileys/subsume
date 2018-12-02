@@ -8,7 +8,7 @@ msdos.img: msdos-base.img subsume.com
 	MTOOLSRC=mtoolsrc mcopy subsume.com c:/
 
 subsume.com: subsume.asm subsumek.bin
-	$(NASM) -f bin -o $@ $<
+	$(NASM) -I src -f bin -o $@ $<
 
 subsumek.bin: linker.ld $(KOBJS)
 	$(LD) -nostdlib -o $@ -T linker.ld $(KOBJS)

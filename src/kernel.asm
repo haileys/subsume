@@ -33,7 +33,7 @@ init:
     mov ecx, 1024
     xor eax, eax
     rep stosd ; clear PT
-    mov dword [initptent], physbase + (PAGE_PRESENT | PAGE_RW)
+    mov dword [initptent], KERNEL_PHYS_BASE + (PAGE_PRESENT | PAGE_RW)
 
     ; recursively map page directory
     mov dword [physpd + 1023 * 4], physpd + (PAGE_PRESENT | PAGE_RW)
@@ -62,7 +62,7 @@ init:
     and eax, 0x3ff
     lea ebx, [edx + eax * 4] ; find PT entry address
     ; build PT entry
-    lea eax, [esi + physbase - KERNEL_BASE] ; convert virt to phys for kernel map
+    lea eax, [esi + KERNEL_PHYS_BASE - KERNEL_BASE] ; convert virt to phys for kernel map
     or eax, 0x03 ; present | rw
     mov [ebx], eax ; set PT entry
     ; advance esi (virt addr) to next page
@@ -88,12 +88,12 @@ init:
 %define PTE(addr) (0xffc00000 + ((addr) >> 12) * 4)
 
 kernel:
-    ; nerf temp mapping of first init page via recursively mapped PD
-    mov dword [PTE(physbase)], 0
-
     ; edi contains next physical page available for use
     ; save it in ebx
     mov ebx, edi
+
+    ; nerf temp mapping of first init page via recursively mapped PD
+    mov dword [PTE(KERNEL_PHYS_BASE)], 0
 
     ; move GDT to higher half
     lgdt [gdtr]
@@ -288,11 +288,10 @@ critical_end:
 .return:
     ret
 
-physbase    equ 0x00110000
-initpdent   equ physpd + (physbase >> 22) * 4
-initptent   equ physpd + PAGE_SIZE + (physbase >> 12) * 4
+initpdent   equ physpd + (KERNEL_PHYS_BASE >> 22) * 4
+initptent   equ physpd + PAGE_SIZE + (KERNEL_PHYS_BASE >> 12) * 4
 initlen     equ kernel - init
-physpd      equ end - KERNEL_BASE + physbase
+physpd      equ end - KERNEL_BASE + KERNEL_PHYS_BASE
 
 gdtr:
     dw gdt.end - gdt - 1
