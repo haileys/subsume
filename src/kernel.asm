@@ -121,7 +121,7 @@ kernel:
     push 0xb8000
     push vram
     call page_map
-    add esp, 8
+    add esp, 12
 
     ; initialize interrupts
     call interrupt_init
@@ -141,8 +141,45 @@ kernel:
     mov ax, SEG_TSS
     ltr ax
 
-    ; enable interrupts
-    sti
+    ; map ring 3 page
+    call phys_alloc
+    push PAGE_RW | PAGE_USER
+    push eax
+    push 0x1000
+    call page_map
+    add esp, 12
+
+    ; set up ring 3 task code
+    mov esi, ring3task
+    mov edi, 0x1000
+    mov ecx, ring3task.end - ring3task
+    rep movsb
+
+    ; switch to ring 3
+    mov ax, SEG_UDATA
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    push SEG_UDATA
+    push 0x2000
+    pushf
+    pop eax
+    or eax, 1 << 9 ; set IF flag
+    push eax
+    push SEG_UCODE
+    push 0x1000
+
+    xor eax, eax
+    xor ebx, ebx
+    xor ecx, ecx
+    xor edx, edx
+    xor ebp, ebp
+    xor esi, esi
+    xor edi, edi
+
+    iret
+
 
 L:
     hlt
@@ -268,6 +305,10 @@ gdt:
     db 0 ; base 24:31
 .end:
 
+ring3task:
+    inc eax
+    jmp ring3task
+.end:
 
 section .bss
 stackguard  resb 0x1000
