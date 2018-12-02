@@ -193,6 +193,7 @@ critical:
 global critical_begin
 critical_begin:
     call critical
+    xor eax, 1 ; critical returns 1 if IF off, invert to get IF state
     cli ; clear interrupt
     ret
 
