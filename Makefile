@@ -14,7 +14,7 @@ subsumek.bin: linker.ld $(KOBJS)
 	$(LD) -o $@ -T linker.ld -nostdlib $(KOBJS)
 
 src/%.o: src/%.c src/*.h
-	$(CC) -o $@ -Os -Wall -Werror -ffreestanding -nostdinc -nostdlib -c $<
+	$(CC) -o $@ -Os -Wall -Wextra -pedantic -Werror -ffreestanding -nostdinc -nostdlib -c $<
 
 src/%.o: src/%.asm src/consts.asm
 	$(NASM) -I src -f elf32 -o $@ $<
