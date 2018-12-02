@@ -11,7 +11,7 @@ subsume.com: subsume.asm subsumek.bin
 	$(NASM) -f bin -o $@ $<
 
 subsumek.bin: linker.ld $(KOBJS)
-	$(LD) -o $@ -T linker.ld -nostdlib $(KOBJS)
+	$(LD) -nostdlib -o $@ -T linker.ld $(KOBJS)
 
 src/%.o: src/%.c src/*.h
 	$(CC) -o $@ -Os -Wall -Wextra -pedantic -Werror -ffreestanding -nostdinc -nostdlib -c $<
