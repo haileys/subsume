@@ -10,6 +10,7 @@ extern temp_unmap
 extern textend
 extern virt_alloc
 extern virt_free
+extern virt_to_phys
 
 %include "consts.asm"
 
@@ -149,26 +150,48 @@ kernel:
     call page_map
     add esp, 12
 
+    ; set up 1 MiB of memory for VM86 task
+    xor edi, edi
+.vm86_alloc_loop:
+    call phys_alloc
+    push PAGE_RW | PAGE_USER
+    push eax
+    push edi
+    call page_map
+    add esp, 12
+    add edi, 0x1000
+    cmp edi, 0x100000
+    jb .vm86_alloc_loop
+
+    ; map zero page at 0x100000 to emulate disabled A20 line
+    push dword PAGE_RW | PAGE_USER
+    push dword 0
+    call virt_to_phys
+    add esp, 4
+    push eax
+    push dword 0
+    call page_map
+    add esp, 12
+
     ; set up ring 3 task code
     mov esi, ring3task
     mov edi, 0x1000
     mov ecx, ring3task.end - ring3task
     rep movsb
 
-    ; switch to ring 3
-    mov ax, SEG_UDATA
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    push SEG_UDATA
-    push 0x2000
+    ; switch to vm8086
+    push 0          ; GS
+    push 0          ; FS
+    push 0          ; DS
+    push 0          ; ES
+    push 0          ; SS
+    push 0x2000     ; ESP
     pushf
     pop eax
-    or eax, 1 << 9 ; set IF flag
-    push eax
-    push SEG_UCODE
-    push 0x1000
+    or eax, FLAG_INTERRUPT | FLAG_VM8086
+    push eax        ; EFLAGS
+    push 0          ; CS
+    push 0x1000     ; EIP
 
     xor eax, eax
     xor ebx, ebx
@@ -305,10 +328,16 @@ gdt:
     db 0 ; base 24:31
 .end:
 
+use16
 ring3task:
-    inc eax
+    inc ax
     jmp ring3task
+    nop
+    nop
+    nop
+    nop
 .end:
+use32
 
 section .bss
 stackguard  resb 0x1000

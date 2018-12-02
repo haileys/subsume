@@ -23,3 +23,6 @@
 %define PAGE_RW         0x002
 %define PAGE_USER       0x004
 %define PAGE_FLAGS      0xfff
+
+%define FLAG_INTERRUPT  (1 << 9)
+%define FLAG_VM8086     (1 << 17)

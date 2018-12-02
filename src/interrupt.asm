@@ -101,6 +101,7 @@ pic_init:
     ret
 
 divide_by_zero:
+    xchg bx, bx
     iret
 
 debug:
@@ -132,8 +133,17 @@ device_not_available:
     iret
 
 double_fault:
+    push eax
+    push ds
+    push es
+    mov ax, SEG_KDATA
+    mov ds, ax
+    mov es, ax
     push .msg
     call panic
+    pop es
+    pop ds
+    pop eax
     .msg db "double fault"
 
 invalid_tss:
@@ -152,14 +162,37 @@ stack_segment_fault:
     iret
 
 general_protection_fault:
-    xchg bx, bx
+    push eax
+    push ds
+    push es
+    mov ax, SEG_KDATA
+    mov ds, ax
+    mov es, ax
+    push .msg
+    call panic
+    mov es, ax
+    pop ds
+    pop eax
     add esp, 4 ; pop error code from stack
     iret
+    .msg db "general protection fault", 0
+
 
 page_fault:
-    xchg bx, bx
+    push eax
+    push ds
+    push es
+    mov ax, SEG_KDATA
+    mov ds, ax
+    mov es, ax
+    push .msg
+    call panic
+    pop es
+    pop ds
+    pop eax
     add esp, 4 ; pop error code from stack
     iret
+    .msg    db "page fault", 0
 
 x87_exception:
     xchg bx, bx
@@ -190,10 +223,14 @@ security_exception:
 ; PIT
 irq0:
     push ax
+    push ds
+    mov ax, SEG_KDATA
+    mov ds, ax
     mov al, 0x20
     out PIC1 + COMMAND, al
-    pop ax
     inc byte [vram]
+    pop ds
+    pop ax
     iret
 
 ; keyboard

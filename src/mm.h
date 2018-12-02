@@ -24,6 +24,9 @@ page_map(void* virt, phys_t phys, uint16_t flags);
 void
 page_unmap(void* virt);
 
+phys_t
+virt_to_phys(void* virt);
+
 void*
 virt_alloc();
 

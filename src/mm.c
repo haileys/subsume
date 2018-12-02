@@ -111,6 +111,12 @@ page_unmap(void* virt)
     return phys;
 }
 
+phys_t
+virt_to_phys(void* virt)
+{
+    return PAGE_TABLE[PTE(virt)] & ~PAGE_FLAGS;
+}
+
 void*
 virt_alloc()
 {
