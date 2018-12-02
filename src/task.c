@@ -65,10 +65,6 @@ pop16(regs_t* regs)
 static void
 do_int(regs_t* regs, uint16_t vector)
 {
-    if (!interrupts) {
-        return;
-    }
-
     push16(regs, regs->cs);
     push16(regs, regs->eip);
     struct ivt_descr* descr = &IVT[vector];
@@ -166,13 +162,17 @@ interrupt(regs_t* regs)
 
     if (regs->interrupt >= 0x20 && regs->interrupt < 0x28) {
         // PIC 1
-        do_int(regs, regs->interrupt + 0x08);
+        if (interrupts) {
+            do_int(regs, regs->interrupt + 0x08);
+        }
         return;
     }
 
     if (regs->interrupt >= 0x28 && regs->interrupt < 0x30) {
         // PIC 2
-        do_int(regs, regs->interrupt + 0x70);
+        if (interrupts) {
+            do_int(regs, regs->interrupt + 0x70);
+        }
         return;
     }
 
