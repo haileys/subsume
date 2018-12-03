@@ -122,12 +122,12 @@ do_popf(regs_t* regs)
 }
 
 static void
-do_int(regs_t* regs, uint16_t vector)
+do_int(regs_t* regs, uint8_t vector)
 {
+    do_pushf(regs);
     push16(regs, regs->cs);
     push16(regs, regs->eip);
     struct ivt_descr* descr = &IVT[vector];
-    do_pushf(regs);
     regs->cs = descr->segment;
     regs->eip = descr->offset;
 }
