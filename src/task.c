@@ -3,6 +3,8 @@
 #include "task.h"
 
 static bool interrupts = false;
+static bool pending_interrupt = false;
+static uint8_t pending_interrupt_nr = 0;
 
 static void
 print(const char* msg)
@@ -133,6 +135,26 @@ do_int(regs_t* regs, uint8_t vector)
 }
 
 static void
+do_maskable_int(regs_t* regs, uint8_t vector)
+{
+    if (interrupts) {
+        do_int(regs, vector);
+    } else {
+        pending_interrupt = true;
+        pending_interrupt_nr = vector;
+    }
+}
+
+static void
+do_pending_int(regs_t* regs)
+{
+    if (pending_interrupt) {
+        pending_interrupt = false;
+        do_int(regs, pending_interrupt_nr);
+    }
+}
+
+static void
 do_iret(regs_t* regs)
 {
     regs->eip = pop16(regs);
@@ -215,7 +237,7 @@ gpf(regs_t* regs)
         return;
     }
     case 0xcd: {
-        // INT
+        // INT imm
         print("  INT\n");
         uint16_t vector = peekip(regs, 1);
         regs->eip += 2;
@@ -271,6 +293,7 @@ gpf(regs_t* regs)
         print("  STI\n");
         interrupts = true;
         regs->eip += 1;
+        do_pending_int(regs);
         return;
     default:
         print("unknown instruction in gpf\n");
@@ -288,17 +311,13 @@ interrupt(regs_t* regs)
 
     if (regs->interrupt >= 0x20 && regs->interrupt < 0x28) {
         // PIC 1
-        if (interrupts) {
-            do_int(regs, regs->interrupt + 0x08);
-        }
+        do_maskable_int(regs, regs->interrupt - 0x20 + 0x08);
         return;
     }
 
     if (regs->interrupt >= 0x28 && regs->interrupt < 0x30) {
         // PIC 2
-        if (interrupts) {
-            do_int(regs, regs->interrupt + 0x70);
-        }
+        do_maskable_int(regs, regs->interrupt - 0x28 + 0x70);
         return;
     }
 
