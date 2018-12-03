@@ -177,6 +177,20 @@ gpf(regs_t* regs)
         regs->eip += 1;
         return;
     }
+    case 0x9c: {
+        print("  PUSHF\n");
+        // PUSHF
+        do_pushf(regs);
+        regs->eip += 1;
+        return;
+    }
+    case 0x9d: {
+        print("  POPF\n");
+        // POPF
+        do_popf(regs);
+        regs->eip += 1;
+        return;
+    }
     case 0xcd: {
         // INT
         print("  INT\n");
@@ -211,20 +225,6 @@ gpf(regs_t* regs)
         interrupts = true;
         regs->eip += 1;
         return;
-    case 0x9c: {
-        print("  PUSHF\n");
-        // PUSHF
-        do_pushf(regs);
-        regs->eip += 1;
-        return;
-    }
-    case 0x9d: {
-        print("  POPF\n");
-        // POPF
-        do_popf(regs);
-        regs->eip += 1;
-        return;
-    }
     default:
         print("unknown instruction in gpf\n");
         __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs, regs->eip)));
