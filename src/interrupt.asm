@@ -111,18 +111,18 @@ DISPATCH_0 0x2e, irq14
 ; DISPATCH_0 0x2f, irq15
 
 interrupt_common:
-    pusha
     push ds
     push es
+    pusha
     mov ax, SEG_KDATA
     mov ds, ax
     mov es, ax
     push esp
     call interrupt
     add esp, 4
+    popa
     pop es
     pop ds
-    popa
     add esp, 8
     iret
 
