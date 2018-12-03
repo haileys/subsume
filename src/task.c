@@ -140,17 +140,41 @@ do_iret(regs_t* regs)
     do_popf(regs);
 }
 
+static uint8_t
+do_inb(uint16_t port)
+{
+    return inb(port);
+}
+
+static uint16_t
+do_inw(uint16_t port)
+{
+    return inw(port);
+}
+
+static void
+do_outb(uint16_t port, uint8_t val)
+{
+    outb(port, val);
+}
+
+static void
+do_outw(uint16_t port, uint8_t val)
+{
+    outw(port, val);
+}
+
 static void
 do_insb(regs_t* regs)
 {
-    poke8(regs->es16, regs->edi, inb(regs->edx));
+    poke8(regs->es16, regs->edi, do_inb(regs->edx));
     regs->edi += 1;
 }
 
 static void
 do_insw(regs_t* regs)
 {
-    uint16_t value = inw(regs->edx);
+    uint16_t value = do_inw(regs->edx);
     poke16(regs->es16, regs->edi, value);
     regs->edi += 2;
 }
@@ -202,6 +226,30 @@ gpf(regs_t* regs)
         // IRET
         print("  IRET\n");
         do_iret(regs);
+        return;
+    case 0xe4:
+        // INB imm
+        print("  INB imm\n");
+        regs->eax = do_inb(peekip(regs, 1));
+        regs->eip += 2;
+        return;
+    case 0xe5:
+        // INW imm
+        print("  INW imm\n");
+        regs->eax = do_inw(peekip(regs, 1));
+        regs->eip += 2;
+        return;
+    case 0xe6:
+        // OUTB imm
+        print("  OUTB imm\n");
+        do_outb(peekip(regs, 1), regs->eax);
+        regs->eip += 2;
+        return;
+    case 0xe7:
+        // OUTW imm
+        print("  OUTW imm\n");
+        do_outw(peekip(regs, 1), regs->eax);
+        regs->eip += 2;
         return;
     case 0xf4: {
         // HLT
