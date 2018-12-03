@@ -166,12 +166,18 @@ kernel:
     ; set up 1 MiB of memory for VM86 task
     xor edi, edi
 .vm86_alloc_loop:
+    ; don't allocate page at 0xb8000
+    ; we'll map this to physiscal VRAM later
+    cmp edi, 0xb8000
+    je .next
+    ; allocate and map page
     call phys_alloc
     push PAGE_RW | PAGE_USER
     push eax
     push edi
     call page_map
     add esp, 12
+.next:
     add edi, 0x1000
     cmp edi, 0x100000
     jb .vm86_alloc_loop
@@ -183,6 +189,13 @@ kernel:
     add esp, 4
     push eax
     push dword 0
+    call page_map
+    add esp, 12
+
+    ; map 0xb8000 of virtual machine to VRAM
+    push PAGE_RW | PAGE_USER
+    push 0xb8000
+    push 0xb8000
     call page_map
     add esp, 12
 
