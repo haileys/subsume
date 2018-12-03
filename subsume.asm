@@ -69,7 +69,7 @@ memloop:
 ; here is where the protected mode kernel will return back to when we're in
 ; VM8086 mode
 retn:
-    int 0x20
+    ; int 0x20
     cli
     hlt
 
