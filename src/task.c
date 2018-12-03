@@ -13,27 +13,26 @@ print(const char* msg)
 }
 
 static void
-fmt16(char* out, uint16_t val)
+print16(uint16_t val)
 {
     const char hexmap[] = "0123456789abcdef";
-    out[0] = hexmap[(val >> 12) & 0xf];
-    out[1] = hexmap[(val >>  8) & 0xf];
-    out[2] = hexmap[(val >>  4) & 0xf];
-    out[3] = hexmap[(val >>  0) & 0xf];
+    char buf[5];
+    buf[0] = hexmap[(val >> 12) & 0xf];
+    buf[1] = hexmap[(val >>  8) & 0xf];
+    buf[2] = hexmap[(val >>  4) & 0xf];
+    buf[3] = hexmap[(val >>  0) & 0xf];
+    buf[4] = 0;
+    print(buf);
 }
 
 static void
 print_csip(regs_t* regs)
 {
-    char csip[13] = { 0 };
-    csip[0] = '@';
-    csip[1] = ' ';
-    fmt16(csip + 2, regs->cs);
-    csip[6] = ':';
-    fmt16(csip + 7, regs->eip);
-    csip[11] = '\n';
-    csip[12] = 0;
-    print(csip);
+    print("@ ");
+    print16(regs->cs);
+    print(":");
+    print16(regs->eip);
+    print("\n");
 }
 
 static void*
