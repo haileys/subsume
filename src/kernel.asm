@@ -349,17 +349,6 @@ gdt:
     db 0 ; base 24:31
 .end:
 
-use16
-ring3task:
-    inc ax
-    jmp ring3task
-    nop
-    nop
-    nop
-    nop
-.end:
-use32
-
 section .bss
 stackguard  resb 0x1000
 stack       resb 0x1000
