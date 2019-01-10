@@ -272,6 +272,30 @@ gpf(regs_t* regs)
         do_outw(peekip(regs, 1), regs->eax.word.lo);
         regs->eip.word.lo += 2;
         return;
+    case 0xec:
+        // INB DX
+        print("  INB DX\n");
+        regs->eax.byte.lo = do_inb(regs->edx.word.lo);
+        regs->eip.word.lo += 1;
+        return;
+    case 0xed:
+        // INW DX
+        print("  INW DX\n");
+        regs->eax.word.lo = do_inw(regs->edx.word.lo);
+        regs->eip.word.lo += 1;
+        return;
+    case 0xee:
+        // OUTB DX
+        print("  OUTB DX\n");
+        do_outb(regs->edx.word.lo, regs->eax.byte.lo);
+        regs->eip.word.lo += 1;
+        return;
+    case 0xef:
+        // OUTW DX
+        print("  OUTW DX\n");
+        do_outw(regs->edx.word.lo, regs->eax.word.lo);
+        regs->eip.word.lo += 1;
+        return;
     case 0xf4: {
         // HLT
         print("  HLT\n");
