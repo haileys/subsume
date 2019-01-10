@@ -3,16 +3,31 @@
 
 #include "types.h"
 
+typedef union {
+    uint32_t dword;
+    struct {
+        uint16_t lo;
+        uint16_t hi;
+    } word;
+    struct {
+        uint8_t lo;
+        uint8_t hi;
+        uint8_t res1;
+        uint8_t res2;
+    } byte;
+}
+reg32_t;
+
 typedef struct {
     // general purpose registers (PUSHA)
-    uint32_t edi;
-    uint32_t esi;
-    uint32_t ebp;
-    uint32_t esp0;
-    uint32_t ebx;
-    uint32_t edx;
-    uint32_t ecx;
-    uint32_t eax;
+    reg32_t edi;
+    reg32_t esi;
+    reg32_t ebp;
+    reg32_t esp0;
+    reg32_t ebx;
+    reg32_t edx;
+    reg32_t ecx;
+    reg32_t eax;
     // segment registers
     uint32_t es_;
     uint32_t ds_;
@@ -20,16 +35,16 @@ typedef struct {
     uint32_t interrupt;
     uint32_t error_code;
     // interrupt stack frame:
-    uint32_t eip;
-    uint32_t cs;
-    uint32_t eflags;
-    uint32_t esp;
-    uint32_t ss;
+    reg32_t eip;
+    reg32_t cs;
+    reg32_t eflags;
+    reg32_t esp;
+    reg32_t ss;
     // only present if interrupt from VM8086
-    uint32_t ds16;
-    uint32_t es16;
-    uint32_t fs16;
-    uint32_t gs16;
+    reg32_t ds16;
+    reg32_t es16;
+    reg32_t fs16;
+    reg32_t gs16;
 }
 regs_t;
 

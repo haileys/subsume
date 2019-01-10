@@ -31,9 +31,9 @@ static void
 print_csip(regs_t* regs)
 {
     print("@ ");
-    print16(regs->cs);
+    print16(regs->cs.word.lo);
     print(":");
-    print16(regs->eip);
+    print16(regs->eip.word.lo);
     print("\n");
 }
 
@@ -70,7 +70,7 @@ poke16(uint16_t segment, uint16_t offset, uint16_t value)
 static uint8_t
 peekip(regs_t* regs, uint16_t offset)
 {
-    return peek8(regs->cs, regs->eip + offset);
+    return peek8(regs->cs.word.lo, regs->eip.word.lo + offset);
 }
 
 struct ivt_descr {
@@ -83,22 +83,22 @@ static struct ivt_descr* const IVT = 0;
 static void
 push16(regs_t* regs, uint16_t value)
 {
-    regs->esp -= 2;
-    poke16(regs->ss, regs->esp, value);
+    regs->esp.word.lo -= 2;
+    poke16(regs->ss.word.lo, regs->esp.word.lo, value);
 }
 
 static uint16_t
 pop16(regs_t* regs)
 {
-    uint16_t value = peek16(regs->ss, regs->esp);
-    regs->esp += 2;
+    uint16_t value = peek16(regs->ss.word.lo, regs->esp.word.lo);
+    regs->esp.word.lo += 2;
     return value;
 }
 
 static void
 do_pushf(regs_t* regs)
 {
-    uint16_t flags = regs->eflags;
+    uint16_t flags = regs->eflags.word.lo;
     if (interrupts) {
         flags |= FLAG_INTERRUPT;
     } else {
@@ -117,21 +117,20 @@ do_popf(regs_t* regs)
     } else {
         interrupts = false;
     }
-    regs->eflags &= ~0xffff;
-    regs->eflags |= flags;
+    regs->eflags.word.lo = flags;
     // force interrupts on in real eflags
-    regs->eflags |= FLAG_INTERRUPT;
+    regs->eflags.word.lo |= FLAG_INTERRUPT;
 }
 
 static void
 do_int(regs_t* regs, uint8_t vector)
 {
     do_pushf(regs);
-    push16(regs, regs->cs);
-    push16(regs, regs->eip);
+    push16(regs, regs->cs.word.lo);
+    push16(regs, regs->eip.word.lo);
     struct ivt_descr* descr = &IVT[vector];
-    regs->cs = descr->segment;
-    regs->eip = descr->offset;
+    regs->cs.word.lo = descr->segment;
+    regs->eip.word.lo = descr->offset;
 }
 
 static void
@@ -157,8 +156,8 @@ do_pending_int(regs_t* regs)
 static void
 do_iret(regs_t* regs)
 {
-    regs->eip = pop16(regs);
-    regs->cs = pop16(regs);
+    regs->eip.word.lo = pop16(regs);
+    regs->cs.word.lo = pop16(regs);
     do_popf(regs);
 }
 
@@ -189,16 +188,16 @@ do_outw(uint16_t port, uint8_t val)
 static void
 do_insb(regs_t* regs)
 {
-    poke8(regs->es16, regs->edi, do_inb(regs->edx));
-    regs->edi += 1;
+    poke8(regs->es16.word.lo, regs->edi.word.lo, do_inb(regs->edx.word.lo));
+    regs->edi.word.lo += 1;
 }
 
 static void
 do_insw(regs_t* regs)
 {
-    uint16_t value = do_inw(regs->edx);
-    poke16(regs->es16, regs->edi, value);
-    regs->edi += 2;
+    uint16_t value = do_inw(regs->edx.word.lo);
+    poke16(regs->es16.word.lo, regs->edi.word.lo, value);
+    regs->edi.word.lo += 2;
 }
 
 static void
@@ -212,35 +211,35 @@ gpf(regs_t* regs)
         // INSB
         print("  INSB\n");
         do_insb(regs);
-        regs->eip += 1;
+        regs->eip.word.lo += 1;
         return;
     }
     case 0x6d: {
         // INSW
         print("  INSW\n");
         do_insw(regs);
-        regs->eip += 1;
+        regs->eip.word.lo += 1;
         return;
     }
     case 0x9c: {
         print("  PUSHF\n");
         // PUSHF
         do_pushf(regs);
-        regs->eip += 1;
+        regs->eip.word.lo += 1;
         return;
     }
     case 0x9d: {
         print("  POPF\n");
         // POPF
         do_popf(regs);
-        regs->eip += 1;
+        regs->eip.word.lo += 1;
         return;
     }
     case 0xcd: {
         // INT imm
         print("  INT\n");
         uint16_t vector = peekip(regs, 1);
-        regs->eip += 2;
+        regs->eip.word.lo += 2;
         do_int(regs, vector);
         return;
     }
@@ -252,26 +251,26 @@ gpf(regs_t* regs)
     case 0xe4:
         // INB imm
         print("  INB imm\n");
-        regs->eax = do_inb(peekip(regs, 1));
-        regs->eip += 2;
+        regs->eax.byte.lo = do_inb(peekip(regs, 1));
+        regs->eip.word.lo += 2;
         return;
     case 0xe5:
         // INW imm
         print("  INW imm\n");
-        regs->eax = do_inw(peekip(regs, 1));
-        regs->eip += 2;
+        regs->eax.word.lo = do_inw(peekip(regs, 1));
+        regs->eip.word.lo += 2;
         return;
     case 0xe6:
         // OUTB imm
         print("  OUTB imm\n");
-        do_outb(peekip(regs, 1), regs->eax);
-        regs->eip += 2;
+        do_outb(peekip(regs, 1), regs->eax.byte.lo);
+        regs->eip.word.lo += 2;
         return;
     case 0xe7:
         // OUTW imm
         print("  OUTW imm\n");
-        do_outw(peekip(regs, 1), regs->eax);
-        regs->eip += 2;
+        do_outw(peekip(regs, 1), regs->eax.word.lo);
+        regs->eip.word.lo += 2;
         return;
     case 0xf4: {
         // HLT
@@ -279,20 +278,20 @@ gpf(regs_t* regs)
         if (!interrupts) {
             panic("8086 task halted CPU with interrupts disabled");
         }
-        regs->eip += 1;
+        regs->eip.word.lo += 1;
         return;
     }
     case 0xfa:
         // CLI
         print("  CLI\n");
         interrupts = false;
-        regs->eip += 1;
+        regs->eip.word.lo += 1;
         return;
     case 0xfb:
         // STI
         print("  STI\n");
         interrupts = true;
-        regs->eip += 1;
+        regs->eip.word.lo += 1;
         do_pending_int(regs);
         return;
     default:
@@ -331,7 +330,7 @@ interrupt(regs_t* regs)
     if (regs->interrupt == INVALID_OPCODE) {
         print("invalid opcode ");
         print_csip(regs);
-        __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs, regs->eip)));
+        __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs.word.lo, regs->eip.word.lo)));
         panic("Invalid opcode");
     }
 
