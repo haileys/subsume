@@ -107,6 +107,8 @@ do_pushf(regs_t* regs)
     push16(regs, flags);
 }
 
+static void do_pending_int(regs_t* regs);
+
 static void
 do_popf(regs_t* regs)
 {
@@ -120,6 +122,10 @@ do_popf(regs_t* regs)
     regs->eflags.word.lo = flags;
     // force interrupts on in real eflags
     regs->eflags.word.lo |= FLAG_INTERRUPT;
+
+    if (interrupts) {
+        do_pending_int(regs);
+    }
 }
 
 static void
