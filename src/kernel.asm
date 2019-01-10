@@ -207,8 +207,8 @@ kernel:
 
     ; set up iret stack in preparation for VM8086 switch
     movzx eax, word [task + TASK_DS]
-    push eax        ; GS
-    push eax        ; FS
+    push 0          ; GS
+    push 0          ; FS
     push eax        ; DS
     push eax        ; ES
     movzx eax, word [task + TASK_SS]
