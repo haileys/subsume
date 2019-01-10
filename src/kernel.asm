@@ -171,9 +171,9 @@ kernel:
     cmp edi, 0xb8000
     je .next
     ; allocate and map page
-    call phys_alloc
+    ; call phys_alloc
     push PAGE_RW | PAGE_USER
-    push eax
+    push edi
     push edi
     call page_map
     add esp, 12
