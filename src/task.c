@@ -326,7 +326,7 @@ gpf(regs_t* regs)
         return;
     default:
         print("unknown instruction in gpf\n");
-        __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs, regs->eip)));
+        __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs.word.lo, regs->eip.word.lo)));
     }
 
     panic("unhandled GPF");
