@@ -156,104 +156,72 @@ pic_init:
     out PIC2 + DATA, al
     ret
 
+%macro DISPATCH_PANIC 1
+    push ds
+    push es
+    mov ax, SEG_KDATA
+    mov ds, ax
+    mov es, ax
+    push .msg
+    call panic
+    cli
+    hlt
+    .msg db "Unhandled CPU exception: ", %1, 0
+%endmacro
+
 divide_by_zero:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "divide by zero"
 
 debug:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "debug"
 
 nmi:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "non-maskable interrupt"
 
 breakpoint:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "breakpoint"
 
 overflow:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "overflow"
 
 bound_range_exceeded:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "bound range exceeded"
 
 device_not_available:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "device not available"
 
 double_fault:
-    push eax
-    push ds
-    push es
-    mov ax, SEG_KDATA
-    mov ds, ax
-    mov es, ax
-    push .msg
-    call panic
-    pop es
-    pop ds
-    pop eax
-    .msg db "double fault"
+    DISPATCH_PANIC "double fault"
 
 invalid_tss:
-    xchg bx, bx
-    add esp, 4 ; pop error code from stack
-    iret
+    DISPATCH_PANIC "invalid tss"
 
 segment_not_present:
-    xchg bx, bx
-    add esp, 4 ; pop error code from stack
-    iret
+    DISPATCH_PANIC "segment not present"
 
 stack_segment_fault:
-    xchg bx, bx
-    add esp, 4 ; pop error code from stack
-    iret
+    DISPATCH_PANIC "stack segment fault"
 
 page_fault:
-    push eax
-    push ds
-    push es
-    mov ax, SEG_KDATA
-    mov ds, ax
-    mov es, ax
-    push .msg
-    call panic
-    pop es
-    pop ds
-    pop eax
-    add esp, 4 ; pop error code from stack
-    iret
-    .msg    db "page fault", 0
+    DISPATCH_PANIC "page fault"
 
 x87_exception:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "x87 exception"
 
 alignment_check:
-    xchg bx, bx
-    add esp, 4 ; pop error code from stack
-    iret
+    DISPATCH_PANIC "alignment check"
 
 machine_check:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "machine check"
 
 simd_exception:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "simd exception"
 
 virtualization_exception:
-    xchg bx, bx
-    iret
+    DISPATCH_PANIC "virtualization exception"
 
 security_exception:
-    xchg bx, bx
-    add esp, 4 ; pop error code from stack
-    iret
+    DISPATCH_PANIC "security exception"
 
 ; IRQ 2 is missing - it never happens in practise
 
