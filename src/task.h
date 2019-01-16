@@ -41,8 +41,8 @@ typedef struct {
     reg32_t esp;
     reg32_t ss;
     // only present if interrupt from VM8086
-    reg32_t ds16;
     reg32_t es16;
+    reg32_t ds16;
     reg32_t fs16;
     reg32_t gs16;
 }
