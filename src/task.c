@@ -143,8 +143,14 @@ static void
 do_maskable_int(regs_t* regs, uint8_t vector)
 {
     if (interrupts) {
+        print("Dispatching interrupt ");
+        print16(vector);
+        print("\n");
         do_int(regs, vector);
     } else {
+        print("Setting pending interrupt ");
+        print16(vector);
+        print("\n");
         pending_interrupt = true;
         pending_interrupt_nr = vector;
     }
@@ -340,12 +346,18 @@ interrupt(regs_t* regs)
 
     if (regs->interrupt >= 0x20 && regs->interrupt < 0x28) {
         // PIC 1
+        print("PIC 1 IRQ ");
+        print16(regs->interrupt - 0x20);
+        print("\n");
         do_maskable_int(regs, regs->interrupt - 0x20 + 0x08);
         return;
     }
 
     if (regs->interrupt >= 0x28 && regs->interrupt < 0x30) {
         // PIC 2
+        print("PIC 2 IRQ ");
+        print16(regs->interrupt - 0x20);
+        print("\n");
         do_maskable_int(regs, regs->interrupt - 0x28 + 0x70);
         return;
     }
