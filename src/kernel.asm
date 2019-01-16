@@ -109,6 +109,9 @@ kernel:
     ; save next physical page in edi to phys_next_free now we've zeroed bss
     mov [phys_next_free], ebx
 
+    ; ebp still contains phys pointer to task data set up for us by early loader
+    mov [task_phys], ebp
+
     ; unmap stack guard page
     mov eax, stackguard
     shr eax, 12
@@ -116,34 +119,6 @@ kernel:
 
     ; set up kernel stack
     mov esp, stackend
-
-    ; ebp still contains phys pointer to data set up for us by early loader
-    ; push it before we map low memory into kernel space
-    push ebp
-
-    ; map low memory into kernel space
-    mov esi, lowmem
-    xor edi, edi
-    mov ecx, LOWMEM_SIZE / PAGE_SIZE
-.lowmem_map:
-    push PAGE_RW
-    push edi
-    push esi
-    call page_map
-    add esp, 12
-    add esi, PAGE_SIZE
-    add edi, PAGE_SIZE
-    loop .lowmem_map
-
-    ; pop saved phys task pointer from before into esi
-    pop esi
-    ; offset esi by lowmem to access virt mapped task data
-    add esi, lowmem
-    mov edi, task
-    mov ecx, TASK_SIZE
-    ; copy task data into kernel-owned memory
-    rep movsb
-    mov eax, task
 
     ; initialize interrupts
     call interrupt_init
@@ -164,14 +139,10 @@ kernel:
     ltr ax
 
     ; set up 1 MiB of memory for VM86 task
+    ; just identity map to low memory for now
     xor edi, edi
 .vm86_alloc_loop:
-    ; don't allocate page at 0xb8000
-    ; we'll map this to physiscal VRAM later
-    cmp edi, 0xb8000
-    je .next
     ; allocate and map page
-    ; call phys_alloc
     push PAGE_RW | PAGE_USER
     push edi
     push edi
@@ -192,36 +163,26 @@ kernel:
     call page_map
     add esp, 12
 
-    ; map 0xb8000 of virtual machine to VRAM
-    push PAGE_RW | PAGE_USER
-    push 0xb8000
-    push 0xb8000
-    call page_map
-    add esp, 12
-
-    ; copy phys low memory to new allocation
-    xor edi, edi
-    mov esi, lowmem
-    mov ecx, LOWMEM_SIZE / 4
-    rep movsd
+    ; task_phys is guaranteed to point to low memory which is identity mapped
+    mov ebx, [task_phys]
 
     ; set up iret stack in preparation for VM8086 switch
-    movzx eax, word [task + TASK_DS]
+    movzx eax, word [ebx + TASK_DS]
     push 0          ; GS
     push 0          ; FS
     push eax        ; DS
     push eax        ; ES
-    movzx eax, word [task + TASK_SS]
+    movzx eax, word [ebx + TASK_SS]
     push eax        ; SS
-    movzx eax, word [task + TASK_SP]
+    movzx eax, word [ebx + TASK_SP]
     push eax        ; ESP
     pushf
     pop eax
     or eax, FLAG_INTERRUPT | FLAG_VM8086
     push eax        ; EFLAGS
-    movzx eax, word [task + TASK_CS]
+    movzx eax, word [ebx + TASK_CS]
     push eax        ; CS
-    movzx eax, word [task + TASK_IP]
+    movzx eax, word [ebx + TASK_IP]
     push eax        ; EIP
 
     ; clear general registers
@@ -248,7 +209,7 @@ zero_page:
 
 global panic
 panic:
-    lea edi, [lowmem + 0xb8000]
+    mov edi, 0xb8000
     mov ah, 0x4f
     mov esi, .msg
 .prefix:
@@ -355,9 +316,9 @@ stack       resb 0x1000
 stackend    equ stack + 0x1000
 global _temp_page
 _temp_page  resb 0x1000
-global lowmem
-lowmem      resb LOWMEM_SIZE
 align 4
 tss         resb TSS_SIZE
+align 4
+task_phys   resb 4
 align 4
 task        resb TASK_SIZE

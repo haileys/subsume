@@ -1,7 +1,6 @@
 %define KERNEL_BASE         0xc0000000
 %define KERNEL_PHYS_BASE    0x00110000
 %define PAGE_SIZE           0x00001000
-%define LOWMEM_SIZE         0x00100000
 
 %define GDT_PRESENT 0x80
 %define GDT_DATA    0x10
