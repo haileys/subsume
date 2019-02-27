@@ -69,19 +69,15 @@ memloop:
 ; here is where the protected mode kernel will return back to when we're in
 ; VM8086 mode
 retn:
-    cli
+    ; print welcome to subsume message:
+    mov ah, 0x09
+    mov dx, .msg
+    int 0x21
 
-    xor ax, ax
-    mov es, ax
-    mov word [es:8*4+0], pit
-    mov ax, cs
-    mov word [es:8*4+2], ax
+    ; return to MS-DOS
+    int 0x20
 
-    mov ax, 0xb800
-    mov es, ax
-
-    sti
-    jmp $
+.msg db "Welcome to Subsume$"
 
 pit:
     inc byte [es:0]
