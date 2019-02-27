@@ -153,7 +153,7 @@ do_int(regs_t* regs, uint8_t vector)
     push16(regs, regs->eip.word.lo);
     struct ivt_descr* descr = &IVT[vector];
     regs->cs.word.lo = descr->segment;
-    regs->eip.word.lo = descr->offset;
+    regs->eip.dword = descr->offset;
 }
 
 static void
