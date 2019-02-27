@@ -185,7 +185,7 @@ do_pending_int(regs_t* regs)
 static void
 do_iret(regs_t* regs)
 {
-    regs->eip.word.lo = pop16(regs);
+    regs->eip.dword = pop16(regs);
     regs->cs.word.lo = pop16(regs);
     do_popf(regs);
 }
