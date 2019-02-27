@@ -367,6 +367,10 @@ unhandled_interrupt(regs_t* regs)
 void
 interrupt(regs_t* regs)
 {
+    if (!(regs->eflags.dword & FLAG_VM8086)) {
+        panic("interrupt did not come from VM8086");
+    }
+
     // handle interrrupts on PICs 1 and 2
     // translates interrupt vectors accordingly
 

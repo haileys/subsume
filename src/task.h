@@ -49,6 +49,7 @@ typedef struct {
 regs_t;
 
 #define FLAG_INTERRUPT              (1 << 9)
+#define FLAG_VM8086                 (1 << 17)
 
 #define INVALID_OPCODE              0x06
 #define GENERAL_PROTECTION_FAULT    0x0d
