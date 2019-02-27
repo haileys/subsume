@@ -178,6 +178,7 @@ kernel:
     push eax        ; ESP
     pushf
     pop eax
+    and eax, 0xffff
     or eax, FLAG_INTERRUPT | FLAG_VM8086
     push eax        ; EFLAGS
     movzx eax, word [ebx + TASK_CS]
