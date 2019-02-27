@@ -355,6 +355,15 @@ gpf(regs_t* regs)
     panic("unhandled GPF");
 }
 
+static void
+unhandled_interrupt(regs_t* regs)
+{
+    char msg[] = "unhandled interrupt 00";
+    msg[sizeof(msg) - 3] = hexmap[(regs->interrupt >> 4) & 0xf];
+    msg[sizeof(msg) - 2] = hexmap[(regs->interrupt >> 0) & 0xf];
+    panic(msg);
+}
+
 void
 interrupt(regs_t* regs)
 {
@@ -393,8 +402,5 @@ interrupt(regs_t* regs)
         panic("Invalid opcode");
     }
 
-    char msg[] = "unhandled interrupt 00";
-    msg[sizeof(msg) - 3] = hexmap[(regs->interrupt >> 4) & 0xf];
-    msg[sizeof(msg) - 2] = hexmap[(regs->interrupt >> 0) & 0xf];
-    panic(msg);
+    unhandled_interrupt(regs);
 }
