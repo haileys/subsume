@@ -57,7 +57,10 @@ print_csip(regs_t* regs)
 static void*
 linear(uint16_t segment, uint16_t offset)
 {
-    return (void*)((((uint32_t)segment) << 4) + (uint32_t)offset);
+    uint32_t seg32 = segment;
+    uint32_t off32 = offset;
+    uint32_t lin = (seg32 << 4) + off32;
+    return (void*)lin;
 }
 
 static uint8_t
