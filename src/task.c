@@ -84,7 +84,7 @@ peek16(uint16_t segment, uint16_t offset)
 static void
 poke16(uint16_t segment, uint16_t offset, uint16_t value)
 {
-    *(uint8_t*)linear(segment, offset) = value;
+    *(uint16_t*)linear(segment, offset) = value;
 }
 
 static uint8_t
