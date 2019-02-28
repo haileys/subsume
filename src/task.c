@@ -54,6 +54,16 @@ print_csip(regs_t* regs)
     print("\n");
 }
 
+enum rep_kind {
+    NONE,
+    REP,
+};
+
+enum bit_size {
+    BITS16 = 0,
+    BITS32 = 1,
+};
+
 static void*
 linear(uint16_t segment, uint16_t offset)
 {
@@ -85,6 +95,12 @@ static void
 poke16(uint16_t segment, uint16_t offset, uint16_t value)
 {
     *(uint16_t*)linear(segment, offset) = value;
+}
+
+static void
+poke32(uint16_t segment, uint16_t offset, uint32_t value)
+{
+    *(uint32_t*)linear(segment, offset) = value;
 }
 
 static uint8_t
@@ -205,6 +221,12 @@ do_inw(uint16_t port)
     return inw(port);
 }
 
+static uint32_t
+do_ind(uint16_t port)
+{
+    return ind(port);
+}
+
 static void
 do_outb(uint16_t port, uint8_t val)
 {
@@ -215,6 +237,12 @@ static void
 do_outw(uint16_t port, uint8_t val)
 {
     outw(port, val);
+}
+
+static void
+do_outd(uint16_t port, uint8_t val)
+{
+    outd(port, val);
 }
 
 static void
@@ -233,8 +261,57 @@ do_insw(regs_t* regs)
 }
 
 static void
+do_insd(regs_t* regs)
+{
+    uint32_t value = do_ind(regs->edx.word.lo);
+    poke32(regs->es16.word.lo, regs->edi.word.lo, value);
+    regs->edi.word.lo += 4;
+}
+
+static uint32_t
+rep_count(regs_t* regs, enum rep_kind rep_kind, enum bit_size operand, enum bit_size address)
+{
+    if (rep_kind == NONE) {
+        return 1;
+    } else {
+        if (operand ^ address) {
+            return regs->ecx.dword;
+        } else {
+            return regs->ecx.word.lo;
+        }
+    }
+}
+
+static void
 gpf(regs_t* regs)
 {
+    enum bit_size address = BITS16;
+    enum bit_size operand = BITS16;
+    enum rep_kind rep_kind = NONE;
+
+prefix:
+    switch (peekip(regs, 0)) {
+        case 0x66:
+            operand = BITS32;
+            regs->eip.word.lo++;
+            goto prefix;
+        case 0xf3:
+            rep_kind = REP;
+            regs->eip.word.lo++;
+            goto prefix;
+        default:
+            break;
+    }
+
+#define REPEAT(blk) do { \
+        for (uint32_t count = rep_count(regs, rep_kind, operand, address); count; count--) { \
+            blk \
+        } \
+        if (rep_kind != NONE) { \
+            regs->ecx.dword = 0; \
+        } \
+    } while (0)
+
     switch (peekip(regs, 0)) {
     case 0x66:
         // o32 prefix
@@ -242,14 +319,24 @@ gpf(regs_t* regs)
     case 0x6c: {
         // INSB
         print("  INSB\n");
-        do_insb(regs);
+        REPEAT({
+            do_insb(regs);
+        });
         regs->eip.word.lo += 1;
         return;
     }
     case 0x6d: {
         // INSW
         print("  INSW\n");
-        do_insw(regs);
+
+        REPEAT({
+            if (operand == BITS32) {
+                do_insd(regs);
+            } else {
+                do_insw(regs);
+            }
+        });
+
         regs->eip.word.lo += 1;
         return;
     }
@@ -289,7 +376,11 @@ gpf(regs_t* regs)
     case 0xe5:
         // INW imm
         print("  INW imm\n");
-        regs->eax.word.lo = do_inw(peekip(regs, 1));
+        if (operand == BITS32) {
+            regs->eax.dword = do_ind(peekip(regs, 1));
+        } else {
+            regs->eax.word.lo = do_inw(peekip(regs, 1));
+        }
         regs->eip.word.lo += 2;
         return;
     case 0xe6:
@@ -301,7 +392,11 @@ gpf(regs_t* regs)
     case 0xe7:
         // OUTW imm
         print("  OUTW imm\n");
-        do_outw(peekip(regs, 1), regs->eax.word.lo);
+        if (operand == BITS32) {
+            do_outd(peekip(regs, 1), regs->eax.dword);
+        } else {
+            do_outw(peekip(regs, 1), regs->eax.word.lo);
+        }
         regs->eip.word.lo += 2;
         return;
     case 0xec:
@@ -313,7 +408,11 @@ gpf(regs_t* regs)
     case 0xed:
         // INW DX
         print("  INW DX\n");
-        regs->eax.word.lo = do_inw(regs->edx.word.lo);
+        if (operand == BITS32) {
+            regs->eax.dword = do_ind(regs->edx.word.lo);
+        } else {
+            regs->eax.word.lo = do_inw(regs->edx.word.lo);
+        }
         regs->eip.word.lo += 1;
         return;
     case 0xee:
@@ -325,7 +424,11 @@ gpf(regs_t* regs)
     case 0xef:
         // OUTW DX
         print("  OUTW DX\n");
-        do_outw(regs->edx.word.lo, regs->eax.word.lo);
+        if (operand == BITS32) {
+            do_outd(regs->edx.word.lo, regs->eax.dword);
+        } else {
+            do_outw(regs->edx.word.lo, regs->eax.word.lo);
+        }
         regs->eip.word.lo += 1;
         return;
     case 0xf4: {
