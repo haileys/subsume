@@ -367,13 +367,9 @@ unhandled_interrupt(regs_t* regs)
     panic(msg);
 }
 
-void
-interrupt(regs_t* regs)
+static void
+dispatch_interrupt(regs_t* regs)
 {
-    if (!(regs->eflags.dword & FLAG_VM8086)) {
-        panic("interrupt did not come from VM8086");
-    }
-
     // handle interrrupts on PICs 1 and 2
     // translates interrupt vectors accordingly
 
@@ -407,7 +403,19 @@ interrupt(regs_t* regs)
         print_csip(regs);
         __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs.word.lo, regs->eip.word.lo)));
         panic("Invalid opcode");
+        return;
     }
 
     unhandled_interrupt(regs);
+}
+
+void
+interrupt(regs_t* regs)
+{
+    if (!(regs->eflags.dword & FLAG_VM8086)) {
+        panic("interrupt did not come from VM8086");
+    }
+
+
+    dispatch_interrupt(regs);
 }
