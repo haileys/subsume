@@ -1,58 +1,11 @@
 #include "io.h"
 #include "kernel.h"
 #include "task.h"
+#include "debug.h"
 
 static bool interrupts = false;
 static bool pending_interrupt = false;
 static uint8_t pending_interrupt_nr = 0;
-
-static void
-print(const char* msg)
-{
-    for(; *msg; msg++) {
-        outb(0xe9, *msg);
-    }
-}
-
-static const char* hexmap = "0123456789abcdef";
-
-static void
-print16(uint16_t val)
-{
-    char buf[5];
-    buf[0] = hexmap[(val >> 12) & 0xf];
-    buf[1] = hexmap[(val >>  8) & 0xf];
-    buf[2] = hexmap[(val >>  4) & 0xf];
-    buf[3] = hexmap[(val >>  0) & 0xf];
-    buf[4] = 0;
-    print(buf);
-}
-
-static void
-print32(uint32_t val)
-{
-    char buf[9];
-    buf[0] = hexmap[(val >> 28) & 0xf];
-    buf[1] = hexmap[(val >> 24) & 0xf];
-    buf[2] = hexmap[(val >> 20) & 0xf];
-    buf[3] = hexmap[(val >> 16) & 0xf];
-    buf[4] = hexmap[(val >> 12) & 0xf];
-    buf[5] = hexmap[(val >>  8) & 0xf];
-    buf[6] = hexmap[(val >>  4) & 0xf];
-    buf[7] = hexmap[(val >>  0) & 0xf];
-    buf[8] = 0;
-    print(buf);
-}
-
-static void
-print_csip(regs_t* regs)
-{
-    print("@ ");
-    print16(regs->cs.word.lo);
-    print(":");
-    print16(regs->eip.word.lo);
-    print("\n");
-}
 
 enum rep_kind {
     NONE,
@@ -176,23 +129,6 @@ do_int(regs_t* regs, uint8_t vector)
 }
 
 static void
-do_maskable_int(regs_t* regs, uint8_t vector)
-{
-    if (interrupts) {
-        print("Dispatching interrupt ");
-        print16(vector);
-        print("\n");
-        do_int(regs, vector);
-    } else {
-        print("Setting pending interrupt ");
-        print16(vector);
-        print("\n");
-        pending_interrupt = true;
-        pending_interrupt_nr = vector;
-    }
-}
-
-static void
 do_pending_int(regs_t* regs)
 {
     if (pending_interrupt) {
@@ -283,7 +219,7 @@ rep_count(regs_t* regs, enum rep_kind rep_kind, enum bit_size operand, enum bit_
 }
 
 static void
-gpf(regs_t* regs)
+emulate_insn(regs_t* regs)
 {
     enum bit_size address = BITS16;
     enum bit_size operand = BITS16;
@@ -461,93 +397,27 @@ prefix:
     panic("unhandled GPF");
 }
 
-static void
-page_fault(regs_t* regs)
+void
+vm86_interrupt(regs_t* regs, uint8_t vector)
 {
-    uint32_t addr;
-    __asm__ volatile("mov %%cr2, %0" : "=r"(addr));
-    print("\n");
-    print("*** PAGE FAULT\n");
-    print("Addr: ");
-    print32(addr);
-    print("\n");
-    print("CS:IP: ");
-    print_csip(regs);
-    print("Flags: ");
-    if (regs->error_code & (1 << 0)) print("present ");
-    if (regs->error_code & (1 << 1)) print("write ");
-    if (regs->error_code & (1 << 2)) print("user ");
-    if (regs->error_code & (1 << 3)) print("reserved ");
-    if (regs->error_code & (1 << 4)) print("insn-fetch ");
-    print("\n");
-    print("\n");
-    panic("Page fault");
-}
-
-static void
-unhandled_interrupt(regs_t* regs)
-{
-    char msg[] = "unhandled interrupt 00";
-    msg[sizeof(msg) - 3] = hexmap[(regs->interrupt >> 4) & 0xf];
-    msg[sizeof(msg) - 2] = hexmap[(regs->interrupt >> 0) & 0xf];
-    panic(msg);
-}
-
-static void
-dispatch_interrupt(regs_t* regs)
-{
-    // handle interrrupts on PICs 1 and 2
-    // translates interrupt vectors accordingly
-
-    if (regs->interrupt >= 0x20 && regs->interrupt < 0x28) {
-        // PIC 1
-        print("PIC 1 IRQ ");
-        print16(regs->interrupt - 0x20);
+    if (interrupts) {
+        print("Dispatching interrupt ");
+        print16(vector);
         print("\n");
-        do_maskable_int(regs, regs->interrupt - 0x20 + 0x08);
-        return;
-    }
-
-    if (regs->interrupt >= 0x28 && regs->interrupt < 0x30) {
-        // PIC 2
-        print("PIC 2 IRQ ");
-        print16(regs->interrupt - 0x20);
+        do_int(regs, vector);
+    } else {
+        print("Setting pending interrupt ");
+        print16(vector);
         print("\n");
-        do_maskable_int(regs, regs->interrupt - 0x28 + 0x70);
-        return;
+        pending_interrupt = true;
+        pending_interrupt_nr = vector;
     }
-
-    if (regs->interrupt == GENERAL_PROTECTION_FAULT) {
-        print("general protection fault ");
-        print_csip(regs);
-        gpf(regs);
-        return;
-    }
-
-    if (regs->interrupt == INVALID_OPCODE) {
-        print("invalid opcode ");
-        print_csip(regs);
-        __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs.word.lo, regs->eip.word.lo)));
-        panic("Invalid opcode");
-        return;
-    }
-
-    if (regs->interrupt == PAGE_FAULT) {
-        page_fault(regs);
-        return;
-    }
-
-    unhandled_interrupt(regs);
 }
 
 void
-interrupt(regs_t* regs)
+vm86_gpf(regs_t* regs)
 {
-    if (!(regs->eflags.dword & FLAG_VM8086)) {
-        panic("interrupt did not come from VM8086");
-    }
-
-    dispatch_interrupt(regs);
+    emulate_insn(regs);
 
     // FIXME something is setting NT, IOPL=3, and a reserved bit in EFLAGS
     // not sure what's happening, but this causes things to break and clearing
