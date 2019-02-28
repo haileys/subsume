@@ -462,6 +462,29 @@ prefix:
 }
 
 static void
+page_fault(regs_t* regs)
+{
+    uint32_t addr;
+    __asm__ volatile("mov %%cr2, %0" : "=r"(addr));
+    print("\n");
+    print("*** PAGE FAULT\n");
+    print("Addr: ");
+    print32(addr);
+    print("\n");
+    print("CS:IP: ");
+    print_csip(regs);
+    print("Flags: ");
+    if (regs->error_code & (1 << 0)) print("present ");
+    if (regs->error_code & (1 << 1)) print("write ");
+    if (regs->error_code & (1 << 2)) print("user ");
+    if (regs->error_code & (1 << 3)) print("reserved ");
+    if (regs->error_code & (1 << 4)) print("insn-fetch ");
+    print("\n");
+    print("\n");
+    panic("Page fault");
+}
+
+static void
 unhandled_interrupt(regs_t* regs)
 {
     char msg[] = "unhandled interrupt 00";
@@ -506,6 +529,11 @@ dispatch_interrupt(regs_t* regs)
         print_csip(regs);
         __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs.word.lo, regs->eip.word.lo)));
         panic("Invalid opcode");
+        return;
+    }
+
+    if (regs->interrupt == PAGE_FAULT) {
+        page_fault(regs);
         return;
     }
 

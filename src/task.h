@@ -53,6 +53,7 @@ regs_t;
 
 #define INVALID_OPCODE              0x06
 #define GENERAL_PROTECTION_FAULT    0x0d
+#define PAGE_FAULT                  0x0e
 
 void
 interrupt(regs_t* regs);

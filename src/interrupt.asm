@@ -89,6 +89,7 @@ interrupt_init:
 
 DISPATCH_0 0x06, invalid_opcode
 DISPATCH_E 0x0d, general_protection_fault
+DISPATCH_E 0x0e, page_fault
 
 ; IRQ dispatchers
 ; note: IRQ7 and IRQ15 handlers require special handling due to spurious
@@ -201,9 +202,6 @@ segment_not_present:
 
 stack_segment_fault:
     DISPATCH_PANIC "stack segment fault"
-
-page_fault:
-    DISPATCH_PANIC "page fault"
 
 x87_exception:
     DISPATCH_PANIC "x87 exception"
