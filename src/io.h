@@ -31,4 +31,18 @@ inw(uint16_t port)
     return value;
 }
 
+static inline void
+outd(uint16_t port, uint32_t value)
+{
+    __asm__ volatile("outl %0, %1" :: "a"(value), "Nd"(port));
+}
+
+static inline uint32_t
+ind(uint16_t port)
+{
+    volatile uint32_t value;
+    __asm__ volatile("inl %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
 #endif
