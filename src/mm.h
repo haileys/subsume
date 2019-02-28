@@ -3,6 +3,11 @@
 
 #include "types.h"
 
+#define PAGE_SIZE 0x1000
+
+#define PAGE_RW   0x002
+#define PAGE_USER 0x004
+
 void
 invlpg(void* virt);
 
@@ -21,7 +26,7 @@ phys_free(phys_t phys);
 void
 page_map(void* virt, phys_t phys, uint16_t flags);
 
-void
+phys_t
 page_unmap(void* virt);
 
 phys_t

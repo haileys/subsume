@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "mm.h"
 #include "types.h"
 
 static uint32_t* const
@@ -11,12 +12,8 @@ PAGE_TABLE = (uint32_t*)0xffc00000;
 
 #define PTE(virt) ((uint32_t)(virt) >> 12)
 
-#define PAGE_SIZE       0x1000
-
 #define PAGE_FLAGS      0xfff
 #define PAGE_PRESENT    0x001
-#define PAGE_RW         0x002
-#define PAGE_USER       0x004
 
 extern uint8_t _temp_page[];
 
