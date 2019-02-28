@@ -11,7 +11,7 @@ extern textend
 extern virt_alloc
 extern virt_free
 extern virt_to_phys
-extern main
+extern setup
 
 %include "consts.asm"
 
@@ -131,8 +131,8 @@ kernel:
     mov ax, SEG_TSS
     ltr ax
 
-    ; call into C kernel
-    call main
+    ; call into C kernel for setup
+    call setup
 
     ; task_phys is guaranteed to point to low memory which is identity mapped
     mov ebx, [task_phys]

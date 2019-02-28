@@ -21,6 +21,6 @@ bool
 critical();
 
 void
-main();
+setup();
 
 #endif

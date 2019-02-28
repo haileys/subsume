@@ -12,7 +12,7 @@ unmap_stack_guard()
 void interrupt_init();
 
 void
-main()
+setup()
 {
     unmap_stack_guard();
     interrupt_init();
