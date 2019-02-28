@@ -3,6 +3,7 @@ LD=i386-elf-ld
 NASM=nasm
 KOBJS= \
 	src/debug.o \
+	src/framebuffer.o \
 	src/interrupt.o \
 	src/isrs.o \
 	src/kernel.o \

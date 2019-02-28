@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "mm.h"
+#include "framebuffer.h"
 
 static void
 unmap_stack_guard()
@@ -25,4 +26,6 @@ setup()
 
         page_map((void*)page, phys, PAGE_RW | PAGE_USER);
     }
+
+    framebuffer_init();
 }

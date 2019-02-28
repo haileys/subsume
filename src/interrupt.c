@@ -2,6 +2,7 @@
 #include "interrupt.h"
 #include "task.h"
 #include "kernel.h"
+#include "framebuffer.h"
 
 static void
 gpf(regs_t* regs)
@@ -45,9 +46,13 @@ unhandled_interrupt(regs_t* regs)
 static void
 dispatch_interrupt(regs_t* regs)
 {
+    // refresh framebuffer on timer interrupt
+    if (regs->interrupt == 0x20) {
+        framebuffer_refresh();
+    }
+
     // handle interrrupts on PICs 1 and 2
     // translates interrupt vectors accordingly
-
     if (regs->interrupt >= 0x20 && regs->interrupt < 0x28) {
         // PIC 1
         print("PIC 1 IRQ ");
