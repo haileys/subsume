@@ -6,7 +6,7 @@ SECTIONS {
     . = 0xc0000000;
 
     .text.init : {
-        src/kernel.o(.text)
+        src/start.o(.text)
     }
 
     .text : {

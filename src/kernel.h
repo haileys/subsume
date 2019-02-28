@@ -20,4 +20,7 @@ critical_end(bool prev);
 bool
 critical();
 
+void
+main();
+
 #endif

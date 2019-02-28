@@ -11,6 +11,7 @@ extern textend
 extern virt_alloc
 extern virt_free
 extern virt_to_phys
+extern main
 
 %include "consts.asm"
 
@@ -112,16 +113,8 @@ kernel:
     ; ebp still contains phys pointer to task data set up for us by early loader
     mov [task_phys], ebp
 
-    ; unmap stack guard page
-    mov eax, stackguard
-    shr eax, 12
-    mov dword [PT + eax * 4], 0
-
     ; set up kernel stack
     mov esp, stackend
-
-    ; initialize interrupts
-    call interrupt_init
 
     ; initialize TSS
     mov [tss + TSS_ESP0], esp
@@ -138,22 +131,8 @@ kernel:
     mov ax, SEG_TSS
     ltr ax
 
-    ; set up 1 MiB of memory for VM86 task
-    ; just identity map to low memory for now
-    xor edi, edi
-.vm86_alloc_loop:
-    ; allocate and map page
-    push PAGE_RW | PAGE_USER
-    mov eax, edi
-    and eax, 0xfffff ; emulate disabled A20 line
-    push eax
-    push edi
-    call page_map
-    add esp, 12
-.next:
-    add edi, 0x1000
-    cmp edi, 0x00110000
-    jb .vm86_alloc_loop
+    ; call into C kernel
+    call main
 
     ; task_phys is guaranteed to point to low memory which is identity mapped
     mov ebx, [task_phys]
@@ -304,6 +283,7 @@ gdt:
 .end:
 
 section .bss
+global stackguard
 stackguard  resb 0x1000
 stack       resb 0x1000
 stackend    equ stack + 0x1000

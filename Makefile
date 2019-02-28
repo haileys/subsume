@@ -1,7 +1,7 @@
 CC=i386-elf-gcc
 LD=i386-elf-ld
 NASM=nasm
-KOBJS=src/kernel.o src/mm.o src/isrs.o src/task.o
+KOBJS=src/start.o src/kernel.o src/mm.o src/isrs.o src/task.o
 
 msdos.img: msdos-base.img subsume.com
 	cp msdos-base.img msdos.img
