@@ -519,6 +519,10 @@ interrupt(regs_t* regs)
         panic("interrupt did not come from VM8086");
     }
 
-
     dispatch_interrupt(regs);
+
+    // FIXME something is setting NT, IOPL=3, and a reserved bit in EFLAGS
+    // not sure what's happening, but this causes things to break and clearing
+    // these bits seems to work around it for now ¯\_(ツ)_/¯
+    regs->eflags.dword &= ~(0xf << 12);
 }
