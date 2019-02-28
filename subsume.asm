@@ -79,12 +79,6 @@ retn:
 
 .msg db "Welcome to Subsume$"
 
-pit:
-    inc byte [es:0]
-    mov al, 0x20
-    out 0x20, al
-    iret
-
 gdtr:
     dw gdt.end - gdt - 1
 .offset:
