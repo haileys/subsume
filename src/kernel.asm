@@ -144,24 +144,16 @@ kernel:
 .vm86_alloc_loop:
     ; allocate and map page
     push PAGE_RW | PAGE_USER
-    push edi
+    mov eax, edi
+    and eax, 0xfffff ; emulate disabled A20 line
+    push eax
     push edi
     call page_map
     add esp, 12
 .next:
     add edi, 0x1000
-    cmp edi, 0x100000
+    cmp edi, 0x00110000
     jb .vm86_alloc_loop
-
-    ; map zero page at 0x100000 to emulate disabled A20 line
-    push dword PAGE_RW | PAGE_USER
-    push dword 0
-    call virt_to_phys
-    add esp, 4
-    push eax
-    push dword 0
-    call page_map
-    add esp, 12
 
     ; task_phys is guaranteed to point to low memory which is identity mapped
     mov ebx, [task_phys]
