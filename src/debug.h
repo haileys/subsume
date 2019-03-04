@@ -8,6 +8,9 @@ void
 print(const char* msg);
 
 void
+print8(uint16_t val);
+
+void
 print16(uint16_t val);
 
 void

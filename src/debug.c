@@ -12,6 +12,16 @@ print(const char* msg)
 static const char* hexmap = "0123456789abcdef";
 
 void
+print8(uint16_t val)
+{
+    char buf[3];
+    buf[0] = hexmap[(val >>  4) & 0xf];
+    buf[1] = hexmap[(val >>  0) & 0xf];
+    buf[2] = 0;
+    print(buf);
+}
+
+void
 print16(uint16_t val)
 {
     char buf[5];

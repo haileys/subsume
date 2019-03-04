@@ -153,37 +153,72 @@ do_iret(task_t* task)
 static uint8_t
 do_inb(uint16_t port)
 {
-    return inb(port);
+    uint8_t value = inb(port);
+    print("inb port ");
+    print16(port);
+    print(" => ");
+    print8(value);
+    print("\n");
+    return value;
 }
 
 static uint16_t
 do_inw(uint16_t port)
 {
-    return inw(port);
+    uint16_t value = inw(port);
+    print("inw port ");
+    print16(port);
+    print(" => ");
+    print16(value);
+    print("\n");
+    return value;
 }
 
 static uint32_t
 do_ind(uint16_t port)
 {
-    return ind(port);
+    uint32_t value = ind(port);
+    print("ind port ");
+    print16(port);
+    print(" => ");
+    print32(value);
+    print("\n");
+    return value;
 }
 
 static void
-do_outb(uint16_t port, uint8_t val)
+do_outb(uint16_t port, uint8_t value)
 {
-    outb(port, val);
+    if (port != 0x20 || value != 0x20) {
+        print("outb port ");
+        print16(port);
+        print(" <= ");
+        print8(value);
+        print("\n");
+    }
+    outb(port, value);
 }
 
 static void
-do_outw(uint16_t port, uint8_t val)
+do_outw(uint16_t port, uint8_t value)
 {
-    outw(port, val);
+    print("outw port ");
+    print16(port);
+    print(" <= ");
+    print16(value);
+    print("\n");
+    outw(port, value);
 }
 
 static void
-do_outd(uint16_t port, uint8_t val)
+do_outd(uint16_t port, uint8_t value)
 {
-    outd(port, val);
+    print("outd port ");
+    print16(port);
+    print(" <= ");
+    print32(value);
+    print("\n");
+    outd(port, value);
 }
 
 static void
