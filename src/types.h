@@ -12,4 +12,8 @@ typedef unsigned long long uint64_t;
 
 typedef uint32_t phys_t;
 
+#define NULL (0)
+
+#define STATIC_ASSERT(name, expr) typedef char static_assert_##name[(expr) ? 1 : -1]
+
 #endif

@@ -3,9 +3,14 @@
 #include "task.h"
 #include "debug.h"
 
-static bool interrupts = false;
-static bool pending_interrupt = false;
-static uint8_t pending_interrupt_nr = 0;
+static task_t task0 = {
+    .regs = 0,
+    .interrupts_enabled = false,
+    .pending_interrupt = false,
+    .pending_interrupt_nr = 0,
+};
+
+task_t* current_task = &task0;
 
 enum rep_kind {
     NONE,
@@ -85,64 +90,64 @@ pop16(regs_t* regs)
 }
 
 static void
-do_pushf(regs_t* regs)
+do_pushf(task_t* task)
 {
-    uint16_t flags = regs->eflags.word.lo;
-    if (interrupts) {
+    uint16_t flags = task->regs->eflags.word.lo;
+    if (task->interrupts_enabled) {
         flags |= FLAG_INTERRUPT;
     } else {
         flags &= ~FLAG_INTERRUPT;
     }
-    push16(regs, flags);
+    push16(task->regs, flags);
 }
 
-static void do_pending_int(regs_t* regs);
+static void do_pending_int(task_t* task);
 
 static void
-do_popf(regs_t* regs)
+do_popf(task_t* task)
 {
-    uint16_t flags = pop16(regs);
+    uint16_t flags = pop16(task->regs);
     // copy IF flag to variable
     if (flags & FLAG_INTERRUPT) {
-        interrupts = true;
+        task->interrupts_enabled = true;
     } else {
-        interrupts = false;
+        task->interrupts_enabled = false;
     }
-    regs->eflags.word.lo = flags;
+    task->regs->eflags.word.lo = flags;
     // force interrupts on in real eflags
-    regs->eflags.word.lo |= FLAG_INTERRUPT;
+    task->regs->eflags.word.lo |= FLAG_INTERRUPT;
 
-    if (interrupts) {
-        do_pending_int(regs);
+    if (task->interrupts_enabled) {
+        do_pending_int(task);
     }
 }
 
 static void
-do_int(regs_t* regs, uint8_t vector)
+do_int(task_t* task, uint8_t vector)
 {
-    do_pushf(regs);
-    push16(regs, regs->cs.word.lo);
-    push16(regs, regs->eip.word.lo);
+    do_pushf(task);
+    push16(task->regs, task->regs->cs.word.lo);
+    push16(task->regs, task->regs->eip.word.lo);
     struct ivt_descr* descr = &IVT[vector];
-    regs->cs.word.lo = descr->segment;
-    regs->eip.dword = descr->offset;
+    task->regs->cs.word.lo = descr->segment;
+    task->regs->eip.dword = descr->offset;
 }
 
 static void
-do_pending_int(regs_t* regs)
+do_pending_int(task_t* task)
 {
-    if (pending_interrupt) {
-        pending_interrupt = false;
-        do_int(regs, pending_interrupt_nr);
+    if (task->pending_interrupt) {
+        task->pending_interrupt = false;
+        do_int(task, task->pending_interrupt_nr);
     }
 }
 
 static void
-do_iret(regs_t* regs)
+do_iret(task_t* task)
 {
-    regs->eip.dword = pop16(regs);
-    regs->cs.word.lo = pop16(regs);
-    do_popf(regs);
+    task->regs->eip.dword = pop16(task->regs);
+    task->regs->cs.word.lo = pop16(task->regs);
+    do_popf(task);
 }
 
 static uint8_t
@@ -219,36 +224,36 @@ rep_count(regs_t* regs, enum rep_kind rep_kind, enum bit_size operand, enum bit_
 }
 
 static void
-emulate_insn(regs_t* regs)
+emulate_insn(task_t* task)
 {
     enum bit_size address = BITS16;
     enum bit_size operand = BITS16;
     enum rep_kind rep_kind = NONE;
 
 prefix:
-    switch (peekip(regs, 0)) {
+    switch (peekip(task->regs, 0)) {
         case 0x66:
             operand = BITS32;
-            regs->eip.word.lo++;
+            task->regs->eip.word.lo++;
             goto prefix;
         case 0xf3:
             rep_kind = REP;
-            regs->eip.word.lo++;
+            task->regs->eip.word.lo++;
             goto prefix;
         default:
             break;
     }
 
 #define REPEAT(blk) do { \
-        for (uint32_t count = rep_count(regs, rep_kind, operand, address); count; count--) { \
+        for (uint32_t count = rep_count(task->regs, rep_kind, operand, address); count; count--) { \
             blk \
         } \
         if (rep_kind != NONE) { \
-            regs->ecx.dword = 0; \
+            task->regs->ecx.dword = 0; \
         } \
     } while (0)
 
-    switch (peekip(regs, 0)) {
+    switch (peekip(task->regs, 0)) {
     case 0x66:
         // o32 prefix
         panic("O32 prefix in GPF'd instruction");
@@ -256,9 +261,9 @@ prefix:
         // INSB
         print("  INSB\n");
         REPEAT({
-            do_insb(regs);
+            do_insb(task->regs);
         });
-        regs->eip.word.lo += 1;
+        task->regs->eip.word.lo += 1;
         return;
     }
     case 0x6d: {
@@ -267,160 +272,160 @@ prefix:
 
         REPEAT({
             if (operand == BITS32) {
-                do_insd(regs);
+                do_insd(task->regs);
             } else {
-                do_insw(regs);
+                do_insw(task->regs);
             }
         });
 
-        regs->eip.word.lo += 1;
+        task->regs->eip.word.lo += 1;
         return;
     }
     case 0x9c: {
         print("  PUSHF\n");
         // PUSHF
-        do_pushf(regs);
-        regs->eip.word.lo += 1;
+        do_pushf(task);
+        task->regs->eip.word.lo += 1;
         return;
     }
     case 0x9d: {
         print("  POPF\n");
         // POPF
-        do_popf(regs);
-        regs->eip.word.lo += 1;
+        do_popf(task);
+        task->regs->eip.word.lo += 1;
         return;
     }
     case 0xcd: {
         // INT imm
         print("  INT\n");
-        uint16_t vector = peekip(regs, 1);
-        regs->eip.word.lo += 2;
-        do_int(regs, vector);
+        uint16_t vector = peekip(task->regs, 1);
+        task->regs->eip.word.lo += 2;
+        do_int(task, vector);
         return;
     }
     case 0xcf:
         // IRET
         print("  IRET\n");
-        do_iret(regs);
+        do_iret(task);
         return;
     case 0xe4:
         // INB imm
         print("  INB imm\n");
-        regs->eax.byte.lo = do_inb(peekip(regs, 1));
-        regs->eip.word.lo += 2;
+        task->regs->eax.byte.lo = do_inb(peekip(task->regs, 1));
+        task->regs->eip.word.lo += 2;
         return;
     case 0xe5:
         // INW imm
         print("  INW imm\n");
         if (operand == BITS32) {
-            regs->eax.dword = do_ind(peekip(regs, 1));
+            task->regs->eax.dword = do_ind(peekip(task->regs, 1));
         } else {
-            regs->eax.word.lo = do_inw(peekip(regs, 1));
+            task->regs->eax.word.lo = do_inw(peekip(task->regs, 1));
         }
-        regs->eip.word.lo += 2;
+        task->regs->eip.word.lo += 2;
         return;
     case 0xe6:
         // OUTB imm
         print("  OUTB imm\n");
-        do_outb(peekip(regs, 1), regs->eax.byte.lo);
-        regs->eip.word.lo += 2;
+        do_outb(peekip(task->regs, 1), task->regs->eax.byte.lo);
+        task->regs->eip.word.lo += 2;
         return;
     case 0xe7:
         // OUTW imm
         print("  OUTW imm\n");
         if (operand == BITS32) {
-            do_outd(peekip(regs, 1), regs->eax.dword);
+            do_outd(peekip(task->regs, 1), task->regs->eax.dword);
         } else {
-            do_outw(peekip(regs, 1), regs->eax.word.lo);
+            do_outw(peekip(task->regs, 1), task->regs->eax.word.lo);
         }
-        regs->eip.word.lo += 2;
+        task->regs->eip.word.lo += 2;
         return;
     case 0xec:
         // INB DX
         print("  INB DX\n");
-        regs->eax.byte.lo = do_inb(regs->edx.word.lo);
-        regs->eip.word.lo += 1;
+        task->regs->eax.byte.lo = do_inb(task->regs->edx.word.lo);
+        task->regs->eip.word.lo += 1;
         return;
     case 0xed:
         // INW DX
         print("  INW DX\n");
         if (operand == BITS32) {
-            regs->eax.dword = do_ind(regs->edx.word.lo);
+            task->regs->eax.dword = do_ind(task->regs->edx.word.lo);
         } else {
-            regs->eax.word.lo = do_inw(regs->edx.word.lo);
+            task->regs->eax.word.lo = do_inw(task->regs->edx.word.lo);
         }
-        regs->eip.word.lo += 1;
+        task->regs->eip.word.lo += 1;
         return;
     case 0xee:
         // OUTB DX
         print("  OUTB DX\n");
-        do_outb(regs->edx.word.lo, regs->eax.byte.lo);
-        regs->eip.word.lo += 1;
+        do_outb(task->regs->edx.word.lo, task->regs->eax.byte.lo);
+        task->regs->eip.word.lo += 1;
         return;
     case 0xef:
         // OUTW DX
         print("  OUTW DX\n");
         if (operand == BITS32) {
-            do_outd(regs->edx.word.lo, regs->eax.dword);
+            do_outd(task->regs->edx.word.lo, task->regs->eax.dword);
         } else {
-            do_outw(regs->edx.word.lo, regs->eax.word.lo);
+            do_outw(task->regs->edx.word.lo, task->regs->eax.word.lo);
         }
-        regs->eip.word.lo += 1;
+        task->regs->eip.word.lo += 1;
         return;
     case 0xf4: {
         // HLT
         print("  HLT\n");
-        if (!interrupts) {
+        if (!task->interrupts_enabled) {
             panic("8086 task halted CPU with interrupts disabled");
         }
-        regs->eip.word.lo += 1;
+        task->regs->eip.word.lo += 1;
         return;
     }
     case 0xfa:
         // CLI
         print("  CLI\n");
-        interrupts = false;
-        regs->eip.word.lo += 1;
+        task->interrupts_enabled = false;
+        task->regs->eip.word.lo += 1;
         return;
     case 0xfb:
         // STI
         print("  STI\n");
-        interrupts = true;
-        regs->eip.word.lo += 1;
-        do_pending_int(regs);
+        task->interrupts_enabled = true;
+        task->regs->eip.word.lo += 1;
+        do_pending_int(task);
         return;
     default:
         print("unknown instruction in gpf\n");
-        __asm__ volatile("cli\nhlt" :: "eax"(linear(regs->cs.word.lo, regs->eip.word.lo)));
+        __asm__ volatile("cli\nhlt" :: "eax"(linear(task->regs->cs.word.lo, task->regs->eip.word.lo)));
     }
 
     panic("unhandled GPF");
 }
 
 void
-vm86_interrupt(regs_t* regs, uint8_t vector)
+vm86_interrupt(task_t* task, uint8_t vector)
 {
-    if (interrupts) {
+    if (task->interrupts_enabled) {
         print("Dispatching interrupt ");
         print16(vector);
         print("\n");
-        do_int(regs, vector);
+        do_int(task, vector);
     } else {
         print("Setting pending interrupt ");
         print16(vector);
         print("\n");
-        pending_interrupt = true;
-        pending_interrupt_nr = vector;
+        task->pending_interrupt = true;
+        task->pending_interrupt_nr = vector;
     }
 }
 
 void
-vm86_gpf(regs_t* regs)
+vm86_gpf(task_t* task)
 {
-    emulate_insn(regs);
+    emulate_insn(task);
 
     // FIXME something is setting NT, IOPL=3, and a reserved bit in EFLAGS
     // not sure what's happening, but this causes things to break and clearing
     // these bits seems to work around it for now ¯\_(ツ)_/¯
-    regs->eflags.dword &= ~(0xf << 12);
+    task->regs->eflags.dword &= ~(0xf << 12);
 }
