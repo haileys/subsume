@@ -12,6 +12,7 @@ extern virt_alloc
 extern virt_free
 extern virt_to_phys
 extern setup
+extern print
 
 %include "consts.asm"
 
@@ -181,27 +182,27 @@ zero_page:
 
 global panic
 panic:
-    mov edi, 0xb8000
-    mov ah, 0x4f
-    mov esi, .msg
-.prefix:
-    lodsb
-    test al, al
-    jz .prefix_done
-    stosw
-    jmp .prefix
-.prefix_done:
-    mov esi, [esp + 4]
-.copy:
-    lodsb
-    test al, al
-    jz .copy_done
-    stosw
-    jmp .copy
-.copy_done:
+    push .nlnl
+    call print
+    add esp, 4
+
+    push .msg
+    call print
+    add esp, 4
+
+    mov eax, [esp + 4]
+    push eax
+    call print
+    add esp, 4
+
+    push .nlnl
+    call print
+    add esp, 4
+
     cli
     hlt
-.msg db "PANIC: ", 0
+.msg db "*** PANIC: ", 0
+.nlnl db 13, 13, 0
 
 global critical
 critical:
