@@ -23,5 +23,11 @@ SECTIONS {
         *(.bss)
     }
 
+    bssend = ALIGN(0x1000);
+
+    .unmapped ALIGN(0x1000) : {
+       *(.unmapped)
+    }
+
     end = ALIGN(0x1000);
 }

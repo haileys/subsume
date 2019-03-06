@@ -71,7 +71,7 @@ init:
     ; advance esi (virt addr) to next page
     add esi, PAGE_SIZE
     ; loop around if there are more pages to be mapped (esi < end)
-    cmp esi, end
+    cmp esi, bssend
     jb .mapkernel
 .pgenable:
     ; set cr3 to PD phys addr
@@ -103,7 +103,7 @@ kernel:
 
     ; zero out bss
     mov edi, textend
-    mov ecx, end
+    mov ecx, bssend
     sub ecx, edi
     shr ecx, 2
     xor eax, eax
@@ -248,7 +248,7 @@ critical_end:
 initpdent   equ physpd + (KERNEL_PHYS_BASE >> 22) * 4
 initptent   equ physpd + PAGE_SIZE + (KERNEL_PHYS_BASE >> 12) * 4
 initlen     equ kernel - init
-physpd      equ end - KERNEL_BASE + KERNEL_PHYS_BASE
+physpd      equ bssend - KERNEL_BASE + KERNEL_PHYS_BASE
 
 gdtr:
     dw gdt.end - gdt - 1
