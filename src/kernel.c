@@ -18,5 +18,4 @@ setup()
     unmap_stack_guard();
     interrupt_init();
     lomem_reset();
-    framebuffer_init();
 }

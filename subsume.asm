@@ -1,6 +1,8 @@
 use16
 org 0x100
 
+%define VBE_MODE 0x0118 ; 1024x768x24
+
 %include "consts.asm"
 
     ; save necessary registers
@@ -15,9 +17,32 @@ org 0x100
     mov [realdata + REALDATA_TASK + TASK_SP], sp
 
     ; fetch text mode font from BIOS
-    mov di, realdata + REALDATA_FONT
     mov ax, 0x1130
     mov bh, 6
+    int 0x10
+    ; call sets ES:BP to base of font
+    ; swap ES and DS for MOVS
+    push es
+    push ds
+    pop es
+    pop ds
+    mov si, bp
+    mov di, realdata + REALDATA_FONT
+    mov cx, 1024
+    rep movsd
+    ; restore DS = ES
+    push es
+    pop ds
+
+    ; query info for the VESA mode we want
+    mov ax, 0x4f01
+    mov cx, VBE_MODE
+    mov di, realdata + REALDATA_VBE_INFO
+    int 0x10
+
+    ; switch to the right VESA mode
+    mov ax, 0x4f02
+    mov bx, VBE_MODE | (1 << 14) ; linear frame buffer
     int 0x10
 
     ; fetch memory map from BIOS
