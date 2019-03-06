@@ -15,6 +15,18 @@ page_fault(task_t* task)
 {
     uint32_t addr;
     __asm__ volatile("mov %%cr2, %0" : "=r"(addr));
+
+    if (addr < 0x00110000) {
+        if (task->regs->error_code & PAGE_FAULT_WRITE) {
+            uint32_t page = addr & PAGE_MASK;
+            print("demand mapping ");
+            print32(page);
+            print("\n");
+            page_map((void*)page, page, PAGE_RW | PAGE_USER);
+            return;
+        }
+    }
+
     print("\n");
     print("*** PAGE FAULT\n");
     print("Addr: ");
@@ -23,11 +35,11 @@ page_fault(task_t* task)
     print("CS:IP: ");
     print_csip(task->regs);
     print("Flags: ");
-    if (task->regs->error_code & (1 << 0)) print("present ");
-    if (task->regs->error_code & (1 << 1)) print("write ");
-    if (task->regs->error_code & (1 << 2)) print("user ");
-    if (task->regs->error_code & (1 << 3)) print("reserved ");
-    if (task->regs->error_code & (1 << 4)) print("insn-fetch ");
+    if (task->regs->error_code & PAGE_FAULT_PRESENT) print("present ");
+    if (task->regs->error_code & PAGE_FAULT_WRITE) print("write ");
+    if (task->regs->error_code & PAGE_FAULT_USER) print("user ");
+    if (task->regs->error_code & PAGE_FAULT_RESERVED) print("reserved ");
+    if (task->regs->error_code & PAGE_FAULT_IFETCH) print("insn-fetch ");
     print("\n");
     print("\n");
     panic("Page fault");
@@ -72,8 +84,6 @@ dispatch_interrupt(task_t* task)
     }
 
     if (task->regs->interrupt == GENERAL_PROTECTION_FAULT) {
-        print("general protection fault ");
-        print_csip(task->regs);
         gpf(task);
         return;
     }

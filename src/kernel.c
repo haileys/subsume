@@ -24,7 +24,7 @@ setup()
         // emulate A20 line:
         phys_t phys = page & 0xfffff;
 
-        page_map((void*)page, phys, PAGE_RW | PAGE_USER);
+        page_map((void*)page, phys, PAGE_USER);
     }
 
     framebuffer_init();

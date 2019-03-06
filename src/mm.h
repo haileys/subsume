@@ -4,9 +4,16 @@
 #include "types.h"
 
 #define PAGE_SIZE 0x1000
+#define PAGE_MASK (~0xfff)
 
 #define PAGE_RW   0x002
 #define PAGE_USER 0x004
+
+#define PAGE_FAULT_PRESENT  (1 << 0)
+#define PAGE_FAULT_WRITE    (1 << 1)
+#define PAGE_FAULT_USER     (1 << 2)
+#define PAGE_FAULT_RESERVED (1 << 3)
+#define PAGE_FAULT_IFETCH   (1 << 4)
 
 void
 invlpg(void* virt);
