@@ -34,3 +34,8 @@
 %define TASK_DS         4
 %define TASK_SS         6
 %define TASK_SP         8
+
+%define REALDATA_FONT       0                           ; size = 4096
+%define REALDATA_VBE_INFO   (REALDATA_FONT + 4096)      ; size = 512
+%define REALDATA_TASK       (REALDATA_VBE_INFO + 512)   ; size = TASK_SIZE
+%define REALDATA_MEMMAP     (REALDATA_TASK + TASK_SIZE) ; size indeterminate

@@ -5,17 +5,23 @@ org 0x100
 
     ; save necessary registers
     mov ax, cs
-    mov [task + TASK_CS], ax
+    mov [realdata + REALDATA_TASK + TASK_CS], ax
     mov ax, retn
-    mov [task + TASK_IP], ax
+    mov [realdata + REALDATA_TASK + TASK_IP], ax
     mov ax, ds
-    mov [task + TASK_DS], ax
+    mov [realdata + REALDATA_TASK + TASK_DS], ax
     mov ax, ss
-    mov [task + TASK_SS], ax
-    mov [task + TASK_SP], sp
+    mov [realdata + REALDATA_TASK + TASK_SS], ax
+    mov [realdata + REALDATA_TASK + TASK_SP], sp
+
+    ; fetch text mode font from BIOS
+    mov di, realdata + REALDATA_FONT
+    mov ax, 0x1130
+    mov bh, 6
+    int 0x10
 
     ; fetch memory map from BIOS
-    mov di, memmap
+    mov di, realdata + REALDATA_MEMMAP
     xor ebx, ebx
     mov edx, 0x534d4150
 memloop:
@@ -132,7 +138,7 @@ pmode:
 
     ; ebp still contains address of pmode
     ; add task offset to it so that kernel receives task data pointer in ebp
-    add ebp, task - pmode
+    add ebp, realdata - pmode
 
     mov eax, KERNEL_PHYS_BASE
     jmp eax
@@ -142,6 +148,4 @@ kernelcode:
 .end:
 
 align 4
-task: times TASK_SIZE db 0
-align 4
-memmap:
+realdata:

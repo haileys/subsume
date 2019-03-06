@@ -1,5 +1,5 @@
 use32
-extern end
+extern bssend
 extern interrupt_init
 extern page_map
 extern phys_alloc
@@ -13,6 +13,7 @@ extern virt_free
 extern virt_to_phys
 extern setup
 extern print
+extern framebuffer_init
 
 %include "consts.asm"
 
@@ -111,8 +112,8 @@ kernel:
     ; save next physical page in edi to phys_next_free now we've zeroed bss
     mov [phys_next_free], ebx
 
-    ; ebp still contains phys pointer to task data set up for us by early loader
-    mov [task_phys], ebp
+    ; ebp still contains phys pointer to realdata set up for us by early loader
+    mov [realdata_phys], ebp
 
     ; set up kernel stack
     mov esp, stackend
@@ -135,8 +136,22 @@ kernel:
     ; call into C kernel for setup
     call setup
 
-    ; task_phys is guaranteed to point to low memory which is identity mapped
-    mov ebx, [task_phys]
+    ; realdata is guaranteed to be in low memory which is identity mapped by
+    ; this point
+
+    ; init framebuffer
+    mov ebx, [realdata_phys]
+    add ebx, REALDATA_FONT
+    push ebx
+    mov ebx, [realdata_phys]
+    add ebx, REALDATA_VBE_INFO
+    push ebx
+    call framebuffer_init
+    add esp, 8
+
+    ; load task data
+    mov ebx, [realdata_phys]
+    add ebx, REALDATA_TASK
 
     ; set up iret stack in preparation for VM8086 switch
     movzx eax, word [ebx + TASK_DS]
@@ -285,14 +300,14 @@ gdt:
 
 section .bss
 global stackguard
-stackguard  resb 0x1000
-stack       resb 0x1000
-stackend    equ stack + 0x1000
+stackguard      resb 0x1000
+stack           resb 0x1000
+stackend        equ stack + 0x1000
 global _temp_page
-_temp_page  resb 0x1000
+_temp_page      resb 0x1000
 align 4
-tss         resb TSS_SIZE
+tss             resb TSS_SIZE
 align 4
-task_phys   resb 4
+realdata_phys   resb 4
 align 4
-task        resb TASK_SIZE
+task            resb TASK_SIZE
