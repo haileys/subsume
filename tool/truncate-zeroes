@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+file = File.open(ARGV[0], "r+b")
+contents = file.read
+new_len = contents.bytesize
+
+while new_len > 0 && contents.getbyte(new_len - 1) == 0
+  new_len -= 1
+end
+
+file.truncate(new_len)

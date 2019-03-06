@@ -20,6 +20,7 @@ subsume.com: subsume.asm subsumek.bin
 
 subsumek.bin: linker.ld $(KOBJS)
 	$(LD) -nostdlib -o $@ -T linker.ld $(KOBJS)
+	tool/truncate-zeroes $@
 
 src/%.o: src/%.c src/*.h
 	$(CC) -o $@ -Os -Wall -Wextra -pedantic -ffreestanding -nostdinc -nostdlib -c $<
