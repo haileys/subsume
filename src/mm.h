@@ -15,6 +15,8 @@
 #define PAGE_FAULT_RESERVED (1 << 3)
 #define PAGE_FAULT_IFETCH   (1 << 4)
 
+#define LOW_MEM_MAX 0x00110000
+
 void
 invlpg(void* virt);
 
@@ -44,5 +46,8 @@ virt_alloc();
 
 void
 virt_free(void* virt);
+
+void
+lomem_reset();
 
 #endif

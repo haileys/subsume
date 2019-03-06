@@ -3,6 +3,7 @@
 #include "task.h"
 #include "kernel.h"
 #include "framebuffer.h"
+#include "mm.h"
 
 static void
 gpf(task_t* task)
@@ -16,7 +17,8 @@ page_fault(task_t* task)
     uint32_t addr;
     __asm__ volatile("mov %%cr2, %0" : "=r"(addr));
 
-    if (addr < 0x00110000) {
+    if (addr < LOW_MEM_MAX) {
+        // CoW:
         if (task->regs->error_code & PAGE_FAULT_WRITE) {
             uint32_t page = addr & PAGE_MASK;
             print("demand mapping ");

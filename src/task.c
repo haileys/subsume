@@ -134,6 +134,19 @@ do_int(task_t* task, uint8_t vector)
 }
 
 static void
+do_software_int(task_t* task, uint8_t vector)
+{
+    if (vector == 0x7f) {
+        // lomem_reset sycall
+        print("SYSCALL: lomem_reset\n");
+        lomem_reset();
+        return;
+    }
+
+    do_int(task, vector);
+}
+
+static void
 do_pending_int(task_t* task)
 {
     if (task->pending_interrupt) {
@@ -335,7 +348,7 @@ prefix:
         print("  INT\n");
         uint16_t vector = peekip(task->regs, 1);
         task->regs->eip.word.lo += 2;
-        do_int(task, vector);
+        do_software_int(task, vector);
         return;
     }
     case 0xcf:

@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "kernel.h"
 #include "mm.h"
 #include "types.h"
@@ -140,4 +141,27 @@ virt_free(void* virt)
     *(uint32_t*)virt = virt_free_list;
     virt_free_list = (uint32_t)virt;
     critical_end(crit);
+}
+
+void
+lomem_reset()
+{
+    // set up 1 MiB of memory for VM86 task
+    // just identity map to low memory for now
+    for (uint32_t page = 0; page < LOW_MEM_MAX; page += PAGE_SIZE) {
+        // free existing mapping if it exists
+        phys_t pte = PAGE_TABLE[PTE(page)];
+        if (pte & PAGE_RW) {
+            print("CoW: rolling back ");
+            print32(page);
+            print("\n");
+            phys_free(pte & PAGE_MASK);
+        }
+
+        // emulate A20 line:
+        phys_t phys = page & 0xfffff;
+
+        // page is not mapped RW - it's CoW
+        page_map((void*)page, phys, PAGE_USER);
+    }
 }
