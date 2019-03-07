@@ -9,6 +9,7 @@
 
 typedef struct {
     regs_t* regs;
+    bool has_reset;
     bool interrupts_enabled;
     bool pending_interrupt;
     uint8_t pending_interrupt_nr;

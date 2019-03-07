@@ -2,9 +2,11 @@
 #include "kernel.h"
 #include "task.h"
 #include "debug.h"
+#include "framebuffer.h"
 
 static task_t task0 = {
     .regs = 0,
+    .has_reset = false,
     .interrupts_enabled = false,
     .pending_interrupt = false,
     .pending_interrupt_nr = 0,
@@ -136,10 +138,14 @@ do_int(task_t* task, uint8_t vector)
 static void
 do_software_int(task_t* task, uint8_t vector)
 {
-    if (vector == 0x7f) {
-        // lomem_reset sycall
-        print("SYSCALL: lomem_reset\n");
+    if (!task->has_reset && vector == 0x7f) {
+        // guest issued reset syscall
+        // we're done with our real mode initialisation
+        task->has_reset = true;
+
+        print("SYSCALL: reset\n");
         lomem_reset();
+        framebuffer_reset();
         return;
     }
 
@@ -200,7 +206,7 @@ do_ind(uint16_t port)
 }
 
 static void
-do_outb(uint16_t port, uint8_t value)
+do_outb(task_t* task, uint16_t port, uint8_t value)
 {
     if (port != 0x20 || value != 0x20) {
         print("outb port ");
@@ -209,28 +215,54 @@ do_outb(uint16_t port, uint8_t value)
         print8(value);
         print("\n");
     }
+
+    if (task->has_reset) {
+        if (IO_VGA_LO <= port && port <= IO_VGA_HI) {
+            framebuffer_outb(port, value);
+            return;
+        }
+    }
+
     outb(port, value);
 }
 
 static void
-do_outw(uint16_t port, uint16_t value)
+do_outw(task_t* task, uint16_t port, uint16_t value)
 {
     print("outw port ");
     print16(port);
     print(" <= ");
     print16(value);
     print("\n");
+
+    if (task->has_reset) {
+        if (IO_VGA_LO <= port && port <= IO_VGA_HI) {
+            // TODO do we ever outw to the VGA?
+            framebuffer_outb(port, value & 0xff);
+            return;
+        }
+    }
+
     outw(port, value);
 }
 
 static void
-do_outd(uint16_t port, uint32_t value)
+do_outd(task_t* task, uint16_t port, uint32_t value)
 {
     print("outd port ");
     print16(port);
     print(" <= ");
     print32(value);
     print("\n");
+
+    if (task->has_reset) {
+        if (IO_VGA_LO <= port && port <= IO_VGA_HI) {
+            // TODO do we ever outd to the VGA?
+            framebuffer_outb(port, value & 0xff);
+            return;
+        }
+    }
+
     outd(port, value);
 }
 
@@ -375,16 +407,16 @@ prefix:
     case 0xe6:
         // OUTB imm
         print("  OUTB imm\n");
-        do_outb(peekip(task->regs, 1), task->regs->eax.byte.lo);
+        do_outb(task, peekip(task->regs, 1), task->regs->eax.byte.lo);
         task->regs->eip.word.lo += 2;
         return;
     case 0xe7:
         // OUTW imm
         print("  OUTW imm\n");
         if (operand == BITS32) {
-            do_outd(peekip(task->regs, 1), task->regs->eax.dword);
+            do_outd(task, peekip(task->regs, 1), task->regs->eax.dword);
         } else {
-            do_outw(peekip(task->regs, 1), task->regs->eax.word.lo);
+            do_outw(task, peekip(task->regs, 1), task->regs->eax.word.lo);
         }
         task->regs->eip.word.lo += 2;
         return;
@@ -407,16 +439,16 @@ prefix:
     case 0xee:
         // OUTB DX
         print("  OUTB DX\n");
-        do_outb(task->regs->edx.word.lo, task->regs->eax.byte.lo);
+        do_outb(task, task->regs->edx.word.lo, task->regs->eax.byte.lo);
         task->regs->eip.word.lo += 1;
         return;
     case 0xef:
         // OUTW DX
         print("  OUTW DX\n");
         if (operand == BITS32) {
-            do_outd(task->regs->edx.word.lo, task->regs->eax.dword);
+            do_outd(task, task->regs->edx.word.lo, task->regs->eax.dword);
         } else {
-            do_outw(task->regs->edx.word.lo, task->regs->eax.word.lo);
+            do_outw(task, task->regs->edx.word.lo, task->regs->eax.word.lo);
         }
         task->regs->eip.word.lo += 1;
         return;

@@ -16,7 +16,14 @@ vram[VRAM_SIZE] __attribute__ ((aligned(PAGE_SIZE), section(".unmapped")));
 static uint8_t*
 bios_font;
 
+static bool
+framebuffer_is_reset = false;
+
+static uint16_t
+cursor_pos;
+
 static struct {
+    phys_t physbase;
     uint32_t width;
     uint32_t height;
     uint32_t pitch;
@@ -49,16 +56,53 @@ framebuffer_init(const vbe_mode_info_t* mode_info, const uint8_t* font)
         bios_font[i] = font[i];
     }
 
-    __asm__ ("xchgw %%bx, %%bx" :: "eax"(bios_font));
-
     // copy mode info
+    vga_info.physbase = mode_info->physbase;
     vga_info.width = mode_info->x_res;
     vga_info.height = mode_info->y_res;
     vga_info.pitch = mode_info->pitch;
+}
+
+void
+framebuffer_outb(uint16_t port, uint8_t value)
+{
+    static uint8_t reg_select = 0;
+
+    switch (port) {
+        case 0x3d4:
+            print("VGA: reg_select: ");
+            print8(value);
+            print("\n");
+            reg_select = value;
+            break;
+        case 0x3d5:
+            switch (reg_select) {
+                case 0x0f:
+                    cursor_pos &= 0xff00;
+                    cursor_pos |= value;
+                    break;
+                case 0x0e:
+                    cursor_pos &= 0x00ff;
+                    cursor_pos |= (value << 8);
+                    break;
+                // ignore other registers
+            }
+            print("VGA: set cursor pos = ");
+            print16(cursor_pos);
+            print("\n");
+            break;
+        // ignore other VGA I/O ports
+    }
+}
+
+void
+framebuffer_reset()
+{
+    print("framebuffer_reset\n");
 
     // map vram to VRAM in phys memory
     for (uint32_t offset = 0; offset < VRAM_SIZE; offset += PAGE_SIZE) {
-        page_map(vram + offset, mode_info->physbase + offset, PAGE_RW);
+        page_map(vram + offset, vga_info.physbase + offset, PAGE_RW);
     }
 
     for (uint32_t y = 0; y < vga_info.height; y++) {
@@ -68,15 +112,55 @@ framebuffer_init(const vbe_mode_info_t* mode_info, const uint8_t* font)
             vram[y * vga_info.pitch + x * 3 + 2] = (x * 256) / vga_info.width;
         }
     }
+
+    framebuffer_refresh();
+
+    framebuffer_is_reset = true;
 }
 
 void
 framebuffer_refresh()
 {
+    struct rgb {
+        uint8_t r, g, b;
+    };
+
+    static const struct rgb colors[] = {
+        // dark:
+        { 0x00, 0x00, 0x00 }, // black
+        { 0x00, 0x00, 0xaa }, // blue
+        { 0x00, 0xaa, 0x00 }, // green
+        { 0x00, 0xaa, 0xaa }, // cyan
+        { 0xaa, 0x00, 0x00 }, // red
+        { 0xaa, 0x00, 0xaa }, // magenta
+        { 0xaa, 0x55, 0x00 }, // brown
+        { 0xaa, 0xaa, 0xaa }, // light gray
+        // light:
+        { 0x55, 0x55, 0x55 }, // dark gray
+        { 0x55, 0x55, 0xff }, // light blue
+        { 0x55, 0xff, 0x55 }, // light green
+        { 0x55, 0xff, 0xff }, // light cyan
+        { 0xff, 0x55, 0x55 }, // light red
+        { 0xff, 0x55, 0xff }, // light magenta
+        { 0xff, 0xff, 0x00 }, // yellow
+        { 0xff, 0xff, 0xff }, // white
+    };
+
+    if (!framebuffer_is_reset) {
+        return;
+    }
+
+    uint32_t console_w = 80 * 8;
+    uint32_t console_h = 25 * 16;
+    uint32_t console_x = (vga_info.width - console_w) / 2;
+    uint32_t console_y = (vga_info.height - console_h) / 2;
+
     for (uint32_t cy = 0; cy < 25; cy++) {
         for (uint32_t cx = 0; cx < 80; cx++) {
-            uint16_t c_attr = user_fb[cy * 25 + cx];
+            uint32_t pos = cy * 80 + cx;
+            uint16_t c_attr = user_fb[pos];
             uint8_t char_ = c_attr & 0xff;
+            uint8_t attr = (c_attr >> 8) & 0xff;
             uint8_t* glyph = &bios_font[char_ * 16];
 
             for (uint32_t gy = 0; gy < 16; gy++) {
@@ -84,25 +168,21 @@ framebuffer_refresh()
                     uint32_t x = cx * 8 + gx;
                     uint32_t y = cy * 16 + gy;
 
-                    bool pix_set = !!(glyph[gy] & (1 << gx));
+                    bool pix_set = !!(glyph[gy] & (0x80 >> gx));
 
-                    uint32_t base = y * vga_info.pitch + x * 3;
-                    // print("setting: ");
-                    // print32(base);
-                    // print("; glyph: ");
-                    // print8(glyph[gy]);
-                    // print("; char: ");
-                    // print8(char_);
-                    // print("\n");
-                    vram[base + 0] = pix_set ? 255 : 0;
-                    vram[base + 1] = pix_set ? 255 : 0;
-                    vram[base + 2] = pix_set ? 255 : 0;
+                    // if (cursor_pos == pos) {
+                    //     // implement cursor by inverting pix set for char
+                    //     pix_set = !pix_set;
+                    // }
+
+                    struct rgb color = colors[pix_set ? (attr & 0x0f) : ((attr >> 4) & 0x0f)];
+
+                    uint32_t base = (console_y + y) * vga_info.pitch + (console_x + x) * 3;
+                    vram[base + 0] = color.b;
+                    vram[base + 1] = color.g;
+                    vram[base + 2] = color.r;
                 }
             }
         }
     }
-    // for (uint32_t i = 0; i < 80 * 25; i++) {
-
-    //     vga_fb[i] = (user_fb[i] & 0xff) | (0x1d << 8);
-    // }
 }
