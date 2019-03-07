@@ -151,14 +151,40 @@ framebuffer_refresh()
     }
 
     uint32_t console_w = 80 * 8;
-    uint32_t console_h = 25 * 16;
+    uint32_t console_h = 26 * 16;
     uint32_t console_x = (vga_info.width - console_w) / 2;
     uint32_t console_y = (vga_info.height - console_h) / 2;
 
-    for (uint32_t cy = 0; cy < 25; cy++) {
+    uint32_t tsc_lo;
+    uint32_t tsc_hi;
+    __asm__("rdtsc" : "=eax"(tsc_lo), "=edx"(tsc_hi));
+
+    for (uint32_t cy = 0; cy < 26; cy++) {
         for (uint32_t cx = 0; cx < 80; cx++) {
             uint32_t pos = cy * 80 + cx;
-            uint16_t c_attr = user_fb[pos];
+
+            uint16_t c_attr;
+
+            if (cy < 25) {
+                c_attr = user_fb[pos];
+            } else {
+                static const char hexmap[] = "0123456789abcdef";
+                static const uint16_t attr = 0x8f00;
+                if (cx == 0) {
+                    c_attr = '[' | attr;
+                } else if (cx >= 1 && cx < 5) {
+                    uint8_t dig = tsc_hi >> (28 - (cx - 1) * 4);
+                    c_attr = hexmap[dig & 0xf] | attr;
+                } else if (cx >= 5 && cx < 9) {
+                    uint8_t dig = tsc_lo >> (28 - (cx - 5) * 4);
+                    c_attr = hexmap[dig & 0xf] | attr;
+                } else if (cx == 9) {
+                    c_attr = ']' | attr;
+                } else {
+                    c_attr = ' ' | attr;
+                }
+            }
+
             uint8_t char_ = c_attr & 0xff;
             uint8_t attr = (c_attr >> 8) & 0xff;
             uint8_t* glyph = &bios_font[char_ * 16];
