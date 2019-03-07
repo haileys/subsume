@@ -206,6 +206,8 @@ panic:
     add esp, 4
 
     mov eax, [esp + 4]
+    cli
+    hlt
     push eax
     call print
     add esp, 4

@@ -8,6 +8,10 @@
 static void
 gpf(task_t* task)
 {
+    if (!(task->regs->eflags.dword & FLAG_VM8086)) {
+        panic("GPF raised external to VM8086 guest");
+    }
+
     vm86_gpf(task);
 }
 
@@ -17,7 +21,7 @@ page_fault(task_t* task)
     uint32_t addr;
     __asm__ volatile("mov %%cr2, %0" : "=r"(addr));
 
-    if (addr < LOW_MEM_MAX) {
+    if (addr < LOW_MEM_MAX && (addr & PAGE_MASK) != 0xb8000) {
         // CoW:
         if (task->regs->error_code & PAGE_FAULT_WRITE) {
             uint32_t page = addr & PAGE_MASK;
@@ -118,10 +122,6 @@ dispatch_interrupt(task_t* task)
 void
 interrupt(regs_t* regs)
 {
-    if (!(regs->eflags.dword & FLAG_VM8086)) {
-        panic("interrupt did not come from VM8086");
-    }
-
     current_task->regs = regs;
     dispatch_interrupt(current_task);
     current_task->regs = NULL;

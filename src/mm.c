@@ -149,6 +149,10 @@ lomem_reset()
     // set up 1 MiB of memory for VM86 task
     // just identity map to low memory for now
     for (uint32_t page = 0; page < LOW_MEM_MAX; page += PAGE_SIZE) {
+        if (page == 0xb8000) {
+            continue;
+        }
+
         // free existing mapping if it exists
         phys_t pte = PAGE_TABLE[PTE(page)];
         if (pte & PAGE_RW) {

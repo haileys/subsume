@@ -32,6 +32,15 @@ vbe_mode_info_t;
 void
 framebuffer_init(const vbe_mode_info_t* mode_info, const uint8_t* font);
 
+#define IO_VGA_LO 0x3b0
+#define IO_VGA_HI 0x3df
+
+void
+framebuffer_outb(uint16_t port, uint8_t value);
+
+void
+framebuffer_reset();
+
 void
 framebuffer_refresh();
 
