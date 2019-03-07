@@ -213,7 +213,7 @@ do_outb(uint16_t port, uint8_t value)
 }
 
 static void
-do_outw(uint16_t port, uint8_t value)
+do_outw(uint16_t port, uint16_t value)
 {
     print("outw port ");
     print16(port);
@@ -224,7 +224,7 @@ do_outw(uint16_t port, uint8_t value)
 }
 
 static void
-do_outd(uint16_t port, uint8_t value)
+do_outd(uint16_t port, uint32_t value)
 {
     print("outd port ");
     print16(port);
