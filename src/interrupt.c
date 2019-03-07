@@ -24,7 +24,17 @@ page_fault(task_t* task)
             print("demand mapping ");
             print32(page);
             print("\n");
-            page_map((void*)page, page, PAGE_RW | PAGE_USER);
+
+            phys_t new_phys = phys_alloc();
+            uint32_t* new_phys_map = temp_map(new_phys);
+
+            for (uint32_t i = 0; i < 1024; i++) {
+                new_phys_map[i] = ((uint32_t*)page)[i];
+            }
+
+            temp_unmap();
+
+            page_map((void*)page, new_phys, PAGE_RW | PAGE_USER);
             return;
         }
     }
