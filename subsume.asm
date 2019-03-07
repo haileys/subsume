@@ -40,11 +40,6 @@ org 0x100
     mov di, realdata + REALDATA_VBE_INFO
     int 0x10
 
-    ; switch to the right VESA mode
-    mov ax, 0x4f02
-    mov bx, VBE_MODE | (1 << 14) ; linear frame buffer
-    int 0x10
-
     ; fetch memory map from BIOS
     mov di, realdata + REALDATA_MEMMAP
     xor ebx, ebx
@@ -100,6 +95,14 @@ memloop:
 ; here is where the protected mode kernel will return back to when we're in
 ; VM8086 mode
 retn:
+    ; switch to the right VESA mode
+    mov ax, 0x4f02
+    mov bx, VBE_MODE | (1 << 14) ; linear frame buffer
+    int 0x10
+
+    ; reset low memory
+    int 0x7f
+
     ; print welcome to subsume message:
     mov ah, 0x09
     mov dx, .msg
