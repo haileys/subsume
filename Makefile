@@ -19,7 +19,7 @@ subsume.com: subsume.asm subsumek.bin
 	$(NASM) -I src -f bin -o $@ $<
 
 subsumek.bin: linker.ld $(KOBJS)
-	$(LD) -nostdlib -o $@ -T linker.ld $(KOBJS)
+	$(LD) -nostdlib -o $@ -T linker.ld $(KOBJS) --print-map > link.map
 	tool/truncate-zeroes $@
 
 src/%.o: src/%.c src/*.h
